@@ -1,7 +1,7 @@
 # fino Core Protobuf
 
-Shared protobuf contracts for fino projects. The repository publishes two
-independent Buf modules and their Go runtime packages.
+Shared protobuf contracts for fino projects. The repository publishes one Buf
+module and its Go runtime package.
 
 | Module                  | Purpose | Go package                             |
 |-------------------------| --- |----------------------------------------|
@@ -41,6 +41,6 @@ buf build
 buf push
 ```
 
-`buf push` publishes `fino/core` independently. Changing a
-module's protobuf package name, field numbers, extension names, or extension
-field numbers is a public compatibility change and must be treated as breaking.
+`buf push` publishes `fino/core`. Changing the protobuf package name, field
+numbers, extension names, or extension field numbers is a public compatibility
+change and must be treated as breaking.

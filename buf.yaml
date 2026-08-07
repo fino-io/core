@@ -2,8 +2,6 @@ version: v2
 modules:
   - path: proto
     name: buf.build/fino/core
-    includes:
-      - proto/fino/core
 lint:
   use:
     - STANDARD
