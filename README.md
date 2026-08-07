@@ -1,11 +1,11 @@
 # fino Core Protobuf
 
 Shared protobuf contracts for fino projects. The repository publishes one Buf
-module and its Go runtime package.
+module and the corresponding Go runtime packages.
 
-| Module                  | Purpose | Go package                             |
-|-------------------------| --- |----------------------------------------|
-| `buf.build/fino/core`   | Common value types: time, duration, error, resource, file, URL, value, and version. | `github.com/fino-io/core/go/fino/core` |
+| Module                | Purpose                                      | Go packages |
+|-----------------------|----------------------------------------------|-------------|
+| `buf.build/fino/core` | Common value types and code-generation options. | `github.com/fino-io/core/go/fino/core` (value types), `github.com/fino-io/core/go/fino` (options) |
 
 ## Use in a protobuf module
 
@@ -18,10 +18,10 @@ deps:
 
 ```proto
 import "fino/core/time.proto";
-import "fino2/options.proto";
+import "fino/options.proto";
 
 message Book {
-  option (fino2.model) = {generate: true services: "BookService"};
+  option (fino.model) = {generate: true services: "BookService"};
 
   fino.core.Timestamp create_time = 1;
 }
@@ -41,6 +41,8 @@ buf build
 buf push
 ```
 
-`buf push` publishes `fino/core`. Changing the protobuf package name, field
-numbers, extension names, or extension field numbers is a public compatibility
-change and must be treated as breaking.
+`buf push` publishes the module configured as `buf.build/fino/core`. The
+registry module name does not determine protobuf package names: consumers
+import `fino/options.proto` and use `(fino.model)`. Changing the protobuf
+package name, field numbers, extension names, or extension field numbers is a
+public compatibility change and must be treated as breaking.

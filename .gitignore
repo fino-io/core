@@ -54,7 +54,7 @@
 go.work
 
 # Go proto ir generated files
-.fino2
+.fino
 
 ### GoLand ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider

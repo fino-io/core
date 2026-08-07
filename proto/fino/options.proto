@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package fino.core;
+package fino;
 
 import "google/protobuf/descriptor.proto";
 
-option go_package = "github.com/fino-io/core/go/fino/core;core";
+option go_package = "github.com/fino-io/core/go/fino;fino";
 
 message ModelOptions {
   bool generate = 1;
