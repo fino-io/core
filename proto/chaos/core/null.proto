@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package chaos.core;
-
-option go_package = "github.com/chaos-io/core/go/chaos/core;core";
-
-message Null {}

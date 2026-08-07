@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package chaos.core;
+package fino.core;
 
-import "chaos/core/boxed.proto";
+import "fino/core/boxed.proto";
 
-option go_package = "github.com/chaos-io/core/go/chaos/core;core";
+option go_package = "github.com/fino-io/core/go/fino/core;core";
 
 message Url {
   message Authority {

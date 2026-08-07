@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package chaos.core;
+package fino.core;
 
-option go_package = "github.com/chaos-io/core/go/chaos/core;core";
+option go_package = "github.com/fino-io/core/go/fino/core;core";
 
 message Version {
   string proto = 1;

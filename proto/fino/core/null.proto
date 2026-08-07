@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package fino.core;
+
+option go_package = "github.com/fino-io/core/go/fino/core;core";
+
+message Null {}

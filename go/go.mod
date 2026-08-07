@@ -1,4 +1,4 @@
-module github.com/chaos-io/core/go
+module github.com/fino-io/core/go
 
 go 1.22
 

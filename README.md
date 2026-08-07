@@ -1,12 +1,11 @@
-# Chaos Core Protobuf
+# fino Core Protobuf
 
-Shared protobuf contracts for Chaos projects. The repository publishes two
+Shared protobuf contracts for fino projects. The repository publishes two
 independent Buf modules and their Go runtime packages.
 
-| Module | Purpose | Go package |
-| --- | --- | --- |
-| `buf.build/chaos/core` | Common value types: time, duration, error, resource, file, URL, value, and version. | `github.com/chaos-io/core/go/chaos/core` |
-| `buf.build/chaos/fino2` | Custom protobuf options used by fino2-generated projects. | `github.com/chaos-io/core/go/fino2` |
+| Module                  | Purpose | Go package                             |
+|-------------------------| --- |----------------------------------------|
+| `buf.build/fino/core`   | Common value types: time, duration, error, resource, file, URL, value, and version. | `github.com/fino-io/core/go/fino/core` |
 
 ## Use in a protobuf module
 
@@ -14,18 +13,17 @@ Add only the modules your schema imports:
 
 ```yaml
 deps:
-  - buf.build/chaos/core
-  - buf.build/chaos/fino2
+  - buf.build/fino/core
 ```
 
 ```proto
-import "chaos/core/time.proto";
+import "fino/core/time.proto";
 import "fino2/options.proto";
 
 message Book {
   option (fino2.model) = {generate: true services: "BookService"};
 
-  chaos.core.Timestamp create_time = 1;
+  fino.core.Timestamp create_time = 1;
 }
 ```
 
@@ -43,6 +41,6 @@ buf build
 buf push
 ```
 
-`buf push` publishes `chaos/core` and `chaos/fino2` independently. Changing a
+`buf push` publishes `fino/core` independently. Changing a
 module's protobuf package name, field numbers, extension names, or extension
 field numbers is a public compatibility change and must be treated as breaking.

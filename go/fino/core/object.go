@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/chaos-io/core/go/chaos/core/strcase"
+	"github.com/fino-io/core/go/fino/core/strcase"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/modern-go/reflect2"
 )

@@ -1,8 +1,8 @@
 package:
   name: core
-  version: v0.1.0
+  version: v2.0.0
   authors:
     - author:
       email:
-      organization: chaos-io
-  repository: github.com/chaos-io/core
+      organization: fino-io
+  repository: github.com/fino-io/core

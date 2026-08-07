@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package chaos.core;
+package fino.core;
 
-import "chaos/core/error_code.proto";
-import "chaos/core/value.proto";
+import "fino/core/error_code.proto";
+import "fino/core/value.proto";
 
-option go_package = "github.com/chaos-io/core/go/chaos/core;core";
+option go_package = "github.com/fino-io/core/go/fino/core;core";
 
 message Error {
   ErrorCode code = 1;

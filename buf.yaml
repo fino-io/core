@@ -1,20 +1,12 @@
-# For details on buf.yaml configuration, visit https://buf.build/docs/configuration/v2/buf-yaml
 version: v2
 modules:
   - path: proto
-    name: buf.build/chaos/core
+    name: buf.build/fino/core
     includes:
-      - proto/chaos/core
-  - path: proto
-    name: buf.build/chaos/fino2
-    includes:
-      - proto/fino2
+      - proto/fino/core
 lint:
   use:
     - STANDARD
-  ignore_only:
-    PACKAGE_VERSION_SUFFIX:
-      - proto/fino2/options.proto
 breaking:
   use:
     - FILE
