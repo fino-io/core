@@ -13,7 +13,7 @@ func FromTime(t time.Time) *Timestamp {
 	sec := t.Unix()
 	return &Timestamp{
 		Seconds:     sec,
-		Nanoseconds: int32(t.UnixNano() - sec*1e9),
+		Nanoseconds: int64ToInt32(t.UnixNano() - sec*1e9),
 	}
 }
 
@@ -94,9 +94,9 @@ func (x *Timestamp) Date() *Date {
 	if x != nil {
 		year, month, day := x.ToTime().Date()
 		return &Date{
-			Year:  int32(year),
-			Month: int32(month),
-			Day:   int32(day),
+			Year:  int64ToInt32(int64(year)),
+			Month: int64ToInt32(int64(month)),
+			Day:   int64ToInt32(int64(day)),
 		}
 	}
 	return nil

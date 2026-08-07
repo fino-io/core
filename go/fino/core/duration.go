@@ -21,7 +21,7 @@ func (x *Duration) FromDuration(d time.Duration) *Duration {
 		nsec := d % time.Second
 
 		x.Seconds = int64(sec)
-		x.Nanoseconds = int32(nsec)
+		x.Nanoseconds = int64ToInt32(int64(nsec))
 	}
 	return x
 }

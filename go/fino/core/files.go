@@ -5,7 +5,7 @@ import "os"
 // CreatDir create dir -r
 func CreatDir(path string) error {
 	if !IsExist(path) {
-		return os.MkdirAll(path, os.ModePerm)
+		return os.MkdirAll(path, 0750)
 	}
 	return nil
 }

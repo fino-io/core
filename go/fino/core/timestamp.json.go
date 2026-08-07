@@ -29,7 +29,7 @@ func (codec *TimestampCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator)
 			ts.Seconds = number
 		} else {
 			ts.Seconds = number / 1000
-			ts.Nanoseconds = int32((number - ts.Seconds*1000) * 1000000)
+			ts.Nanoseconds = int64ToInt32((number - ts.Seconds*1000) * 1000000)
 		}
 	} else if a.ValueType() == jsoniter.StringValue {
 		if err := ts.Parse(a.ToString()); err != nil {

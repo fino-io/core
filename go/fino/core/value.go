@@ -336,10 +336,7 @@ func (x *Value) AsInterface() any {
 	case *Value_PositiveValue:
 		return v.PositiveValue
 	case *Value_NegativeValue:
-		if v.NegativeValue == uint64(1)<<63 {
-			return math.MinInt64
-		}
-		return -int64(v.NegativeValue)
+		return negativeValueToInt64(v.NegativeValue)
 	case *Value_NumberValue:
 		switch {
 		case math.IsNaN(v.NumberValue):
@@ -395,17 +392,14 @@ func (x *Value) GetInt() int {
 }
 
 func (x *Value) GetInt32() int32 {
-	return int32(x.GetInt64())
+	return int64ToInt32(x.GetInt64())
 }
 
 func (x *Value) GetInt64() int64 {
 	if negative := x.GetNegativeValue(); negative > 0 {
-		if negative == uint64(1)<<63 {
-			return math.MinInt64
-		}
-		return -int64(negative)
+		return negativeValueToInt64(negative)
 	}
-	return int64(x.GetPositiveValue())
+	return uint64ToInt64(x.GetPositiveValue())
 }
 
 func (x *Value) GetUint() uint {
@@ -413,7 +407,38 @@ func (x *Value) GetUint() uint {
 }
 
 func (x *Value) GetUint32() uint32 {
-	return uint32(x.GetPositiveValue())
+	return uint64ToUint32(x.GetPositiveValue())
+}
+
+func negativeValueToInt64(value uint64) int64 {
+	if value >= uint64(1)<<63 {
+		return math.MinInt64
+	}
+	return -int64(value) // #nosec G115 -- value is strictly below 2^63 here.
+}
+
+func uint64ToInt64(value uint64) int64 {
+	if value > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(value)
+}
+
+func int64ToInt32(value int64) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(value)
+}
+
+func uint64ToUint32(value uint64) uint32 {
+	if value > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(value)
 }
 
 func (x *Value) GetUint64() uint64 {
