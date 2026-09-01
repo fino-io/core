@@ -2,6 +2,7 @@ package logs
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -165,7 +166,7 @@ func TestFileOutput(t *testing.T) {
 		},
 	})
 
-	logger.Log(Entry{
+	logger.Log(context.Background(), Entry{
 		Level:   InfoLevel,
 		Message: "persisted",
 		Fields:  []Field{{Key: "user", Value: "bob"}},
@@ -175,4 +176,51 @@ func TestFileOutput(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, strings.Contains(string(data), `"message":"persisted"`))
 	require.True(t, strings.Contains(string(data), `"user":"bob"`))
+}
+
+func TestContextFields(t *testing.T) {
+	buf := &bytes.Buffer{}
+	svc := NewService(newZapLogger(&Config{
+		Level:  "info",
+		Encode: "json",
+		Output: "console",
+	}, buf))
+
+	ctx := WithFields(context.Background(),
+		Field{Key: "request_id", Value: "request-1"},
+		Field{Key: "source", Value: "context"},
+	)
+	svc.WithContext(ctx).Infow("handled", "source", "entry")
+
+	out := buf.String()
+	require.Contains(t, out, `"request_id":"request-1"`)
+	require.Contains(t, out, `"source":"entry"`)
+	require.NotContains(t, out, `"source":"context"`)
+}
+
+func TestWithFieldsDoesNotMutateParent(t *testing.T) {
+	parent := WithFields(context.Background(), Field{Key: "request_id", Value: "parent"})
+	child := WithFields(parent, Field{Key: "request_id", Value: "child"})
+
+	require.Equal(t, "parent", fieldsFromContext(parent)[0].Value)
+	require.Equal(t, "child", fieldsFromContext(child)[0].Value)
+}
+
+func TestContextReachesLogger(t *testing.T) {
+	type key struct{}
+	ctx := context.WithValue(context.Background(), key{}, "value")
+	logger := &contextRecordingLogger{}
+
+	NewService(logger).WithContext(ctx).Info("handled")
+
+	require.Equal(t, "value", logger.ctx.Value(key{}))
+}
+
+type contextRecordingLogger struct {
+	nopLogger
+	ctx context.Context
+}
+
+func (l *contextRecordingLogger) Log(ctx context.Context, _ Entry) {
+	l.ctx = ctx
 }

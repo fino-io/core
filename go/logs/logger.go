@@ -1,6 +1,7 @@
 package logs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -21,7 +22,7 @@ type Logger interface {
 	SetLevel(Level)
 	GetLevel() Level
 	With(...Field) Logger
-	Log(Entry)
+	Log(context.Context, Entry)
 }
 
 type Field struct {
@@ -212,7 +213,7 @@ func (l *zapLogger) With(fields ...Field) Logger {
 	}
 }
 
-func (l *zapLogger) Log(entry Entry) {
+func (l *zapLogger) Log(_ context.Context, entry Entry) {
 	if l == nil || l.sugar == nil {
 		return
 	}

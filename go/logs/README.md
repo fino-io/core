@@ -49,6 +49,20 @@ svc := logs.NewService(logger)
 svc.Infow("worker ready", "id", 7)
 ```
 
+携带请求上下文：
+
+```go
+ctx = logs.WithFields(ctx,
+  logs.Field{Key: "request_id", Value: requestID},
+  logs.Field{Key: "tenant_id", Value: tenantID},
+)
+logs.Ctx(ctx).Infow("request handled", "status", "ok")
+```
+
+`WithFields` 只应附加允许进入日志的字段，不要放入 token、密码、请求体等敏感信息。
+`Ctx` 会把 `ctx` 传到最底层 `Logger.Log`，便于上层适配 tracing 等能力；logger 不应保存
+或异步复用传入的 context。
+
 读取当前默认 logger：
 
 ```go

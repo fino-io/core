@@ -2,12 +2,14 @@ package logs
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"sync"
 )
 
 type Service struct {
+	ctx        context.Context
 	logger     Logger
 	callerSkip int
 }
@@ -20,7 +22,25 @@ func NewServiceWithCallerSkip(logger Logger, callerSkip int) *Service {
 	if logger == nil {
 		logger = newNopLogger()
 	}
-	return &Service{logger: logger, callerSkip: callerSkip}
+	return &Service{ctx: context.Background(), logger: logger, callerSkip: callerSkip}
+}
+
+// Ctx returns the default logging service bound to ctx.
+func Ctx(ctx context.Context) *Service {
+	return NewService(DefaultLogger()).WithContext(ctx)
+}
+
+// WithContext returns a copy of the service bound to ctx.
+func (s *Service) WithContext(ctx context.Context) *Service {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if s == nil {
+		return &Service{ctx: ctx, logger: newNopLogger()}
+	}
+	clone := *s
+	clone.ctx = ctx
+	return &clone
 }
 
 func newDefaultService() *Service {
@@ -33,9 +53,7 @@ var (
 )
 
 func DefaultLogger() Logger {
-	defaultServiceMu.RLock()
-	defer defaultServiceMu.RUnlock()
-	return defaultService.logger
+	return currentDefaultService().logger
 }
 
 func SetLogger(logger Logger) {
@@ -45,10 +63,13 @@ func SetLogger(logger Logger) {
 }
 
 func SetLogLevel(level Level) {
+	currentDefaultService().SetLogLevel(level)
+}
+
+func currentDefaultService() *Service {
 	defaultServiceMu.RLock()
-	svc := defaultService
-	defaultServiceMu.RUnlock()
-	svc.SetLogLevel(level)
+	defer defaultServiceMu.RUnlock()
+	return defaultService
 }
 
 func (s *Service) Logger() Logger {
@@ -79,10 +100,14 @@ func (s *Service) log(level Level, msg string, fields ...Field) {
 	if s == nil || s.logger == nil {
 		return
 	}
-	s.logger.Log(Entry{
+	ctx := s.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	s.logger.Log(ctx, Entry{
 		Level:      level,
 		Message:    msg,
-		Fields:     fields,
+		Fields:     mergeFields(fieldsFromContext(ctx), fields),
 		CallerSkip: 1 + s.callerSkip + 2,
 	})
 }
@@ -166,75 +191,75 @@ func (s *Service) NewErrorw(msg string, keysAndValues ...interface{}) error {
 }
 
 func Debug(args ...interface{}) {
-	defaultService.Debug(args...)
+	currentDefaultService().Debug(args...)
 }
 
 func Info(args ...interface{}) {
-	defaultService.Info(args...)
+	currentDefaultService().Info(args...)
 }
 
 func Warn(args ...interface{}) {
-	defaultService.Warn(args...)
+	currentDefaultService().Warn(args...)
 }
 
 func Error(args ...interface{}) {
-	defaultService.Error(args...)
+	currentDefaultService().Error(args...)
 }
 
 func Fatal(args ...interface{}) {
-	defaultService.Fatal(args...)
+	currentDefaultService().Fatal(args...)
 }
 
 func Debugf(template string, args ...interface{}) {
-	defaultService.Debugf(template, args...)
+	currentDefaultService().Debugf(template, args...)
 }
 
 func Infof(template string, args ...interface{}) {
-	defaultService.Infof(template, args...)
+	currentDefaultService().Infof(template, args...)
 }
 
 func Warnf(template string, args ...interface{}) {
-	defaultService.Warnf(template, args...)
+	currentDefaultService().Warnf(template, args...)
 }
 
 func Errorf(template string, args ...interface{}) {
-	defaultService.Errorf(template, args...)
+	currentDefaultService().Errorf(template, args...)
 }
 
 func Fatalf(template string, args ...interface{}) {
-	defaultService.Fatalf(template, args...)
+	currentDefaultService().Fatalf(template, args...)
 }
 
 func Debugw(msg string, keysAndValues ...interface{}) {
-	defaultService.Debugw(msg, keysAndValues...)
+	currentDefaultService().Debugw(msg, keysAndValues...)
 }
 
 func Infow(msg string, keysAndValues ...interface{}) {
-	defaultService.Infow(msg, keysAndValues...)
+	currentDefaultService().Infow(msg, keysAndValues...)
 }
 
 func Warnw(msg string, keysAndValues ...interface{}) {
-	defaultService.Warnw(msg, keysAndValues...)
+	currentDefaultService().Warnw(msg, keysAndValues...)
 }
 
 func Errorw(msg string, keysAndValues ...interface{}) {
-	defaultService.Errorw(msg, keysAndValues...)
+	currentDefaultService().Errorw(msg, keysAndValues...)
 }
 
 func Fatalw(msg string, keysAndValues ...interface{}) {
-	defaultService.Fatalw(msg, keysAndValues...)
+	currentDefaultService().Fatalw(msg, keysAndValues...)
 }
 
 func NewError(args ...interface{}) error {
-	return defaultService.NewError(args...)
+	return currentDefaultService().NewError(args...)
 }
 
 func NewErrorf(template string, args ...interface{}) error {
-	return defaultService.NewErrorf(template, args...)
+	return currentDefaultService().NewErrorf(template, args...)
 }
 
 func NewErrorw(msg string, keysAndValues ...interface{}) error {
-	return defaultService.NewErrorw(msg, keysAndValues...)
+	return currentDefaultService().NewErrorw(msg, keysAndValues...)
 }
 
 func keyValuesToFields(keysAndValues ...interface{}) []Field {
@@ -273,7 +298,7 @@ type nopLogger struct{}
 
 func newNopLogger() Logger { return nopLogger{} }
 
-func (nopLogger) SetLevel(Level)       {}
-func (nopLogger) GetLevel() Level      { return InfoLevel }
-func (nopLogger) With(...Field) Logger { return nopLogger{} }
-func (nopLogger) Log(Entry)            {}
+func (nopLogger) SetLevel(Level)             {}
+func (nopLogger) GetLevel() Level            { return InfoLevel }
+func (nopLogger) With(...Field) Logger       { return nopLogger{} }
+func (nopLogger) Log(context.Context, Entry) {}
