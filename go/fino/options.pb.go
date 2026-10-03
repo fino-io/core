@@ -472,7 +472,7 @@ func file_fino_options_proto_rawDescGZIP() []byte {
 }
 
 var file_fino_options_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_fino_options_proto_goTypes = []any{
+var file_fino_options_proto_goTypes = []interface{}{
 	(*ModelOptions)(nil),                // 0: fino.ModelOptions
 	(*DBOptions)(nil),                   // 1: fino.DBOptions
 	(*ValidateOptions)(nil),             // 2: fino.ValidateOptions
@@ -503,7 +503,7 @@ func file_fino_options_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_fino_options_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_fino_options_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ModelOptions); i {
 			case 0:
 				return &v.state
@@ -515,7 +515,7 @@ func file_fino_options_proto_init() {
 				return nil
 			}
 		}
-		file_fino_options_proto_msgTypes[1].Exporter = func(v any, i int) any {
+		file_fino_options_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*DBOptions); i {
 			case 0:
 				return &v.state
@@ -527,7 +527,7 @@ func file_fino_options_proto_init() {
 				return nil
 			}
 		}
-		file_fino_options_proto_msgTypes[2].Exporter = func(v any, i int) any {
+		file_fino_options_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ValidateOptions); i {
 			case 0:
 				return &v.state
@@ -539,7 +539,7 @@ func file_fino_options_proto_init() {
 				return nil
 			}
 		}
-		file_fino_options_proto_msgTypes[3].Exporter = func(v any, i int) any {
+		file_fino_options_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*MessagingOptions); i {
 			case 0:
 				return &v.state

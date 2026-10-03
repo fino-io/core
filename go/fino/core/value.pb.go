@@ -437,7 +437,7 @@ func file_fino_core_value_proto_rawDescGZIP() []byte {
 
 var file_fino_core_value_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_fino_core_value_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_fino_core_value_proto_goTypes = []any{
+var file_fino_core_value_proto_goTypes = []interface{}{
 	(ValueKind)(0), // 0: fino.core.ValueKind
 	(*Object)(nil), // 1: fino.core.Object
 	(*Values)(nil), // 2: fino.core.Values
@@ -466,7 +466,7 @@ func file_fino_core_value_proto_init() {
 	}
 	file_fino_core_null_proto_init()
 	if !protoimpl.UnsafeEnabled {
-		file_fino_core_value_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_fino_core_value_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Object); i {
 			case 0:
 				return &v.state
@@ -478,7 +478,7 @@ func file_fino_core_value_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_value_proto_msgTypes[1].Exporter = func(v any, i int) any {
+		file_fino_core_value_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Values); i {
 			case 0:
 				return &v.state
@@ -490,7 +490,7 @@ func file_fino_core_value_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_value_proto_msgTypes[2].Exporter = func(v any, i int) any {
+		file_fino_core_value_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Value); i {
 			case 0:
 				return &v.state
@@ -503,7 +503,7 @@ func file_fino_core_value_proto_init() {
 			}
 		}
 	}
-	file_fino_core_value_proto_msgTypes[2].OneofWrappers = []any{
+	file_fino_core_value_proto_msgTypes[2].OneofWrappers = []interface{}{
 		(*Value_NullValue)(nil),
 		(*Value_BoolValue)(nil),
 		(*Value_PositiveValue)(nil),

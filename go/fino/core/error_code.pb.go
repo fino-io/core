@@ -151,7 +151,7 @@ func file_fino_core_error_code_proto_rawDescGZIP() []byte {
 }
 
 var file_fino_core_error_code_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_fino_core_error_code_proto_goTypes = []any{
+var file_fino_core_error_code_proto_goTypes = []interface{}{
 	(*ErrorCode)(nil), // 0: fino.core.ErrorCode
 	(*Url)(nil),       // 1: fino.core.Url
 }
@@ -171,7 +171,7 @@ func file_fino_core_error_code_proto_init() {
 	}
 	file_fino_core_url_proto_init()
 	if !protoimpl.UnsafeEnabled {
-		file_fino_core_error_code_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_fino_core_error_code_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ErrorCode); i {
 			case 0:
 				return &v.state
