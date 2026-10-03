@@ -1,0 +1,10 @@
+{
+  "title": "fino.core.BytesValue",
+  "type": "object",
+  "properties": {
+    "val": {
+      "type": "string",
+      "format": "byte"
+    }
+  }
+}

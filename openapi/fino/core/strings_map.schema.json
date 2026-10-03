@@ -1,0 +1,12 @@
+{
+  "title": "fino.core.StringsMap",
+  "type": "object",
+  "properties": {
+    "vals": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/components/schemas/fino.core.StringValues"
+      }
+    }
+  }
+}

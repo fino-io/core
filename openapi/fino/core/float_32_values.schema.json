@@ -1,0 +1,13 @@
+{
+  "title": "fino.core.Float32Values",
+  "type": "object",
+  "properties": {
+    "vals": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "format": "float"
+      }
+    }
+  }
+}

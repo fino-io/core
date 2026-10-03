@@ -1,0 +1,14 @@
+{
+  "title": "fino.core.Duration",
+  "type": "object",
+  "properties": {
+    "nanoseconds": {
+      "type": "integer",
+      "format": "int32"
+    },
+    "seconds": {
+      "type": "string",
+      "format": "int64"
+    }
+  }
+}

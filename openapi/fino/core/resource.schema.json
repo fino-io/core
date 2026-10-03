@@ -1,0 +1,12 @@
+{
+  "title": "fino.core.Resource",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    }
+  }
+}

@@ -1,20 +1,13 @@
 # fino Core Protobuf
 
-Shared protobuf contracts for fino projects. The repository publishes one Buf
-module and the corresponding Go runtime packages.
+Shared protobuf contracts and Go runtime packages for fino projects.
 
-| Module                | Purpose                                      | Go packages |
-|-----------------------|----------------------------------------------|-------------|
-| `buf.build/fino/core` | Common value types and code-generation options. | `github.com/fino-io/core/go/fino/core` (value types), `github.com/fino-io/core/go/fino` (options) |
+| Go package | Purpose |
+|------------|---------|
+| `github.com/fino-io/core/go/fino/core` | Common value types and runtime helpers. |
+| `github.com/fino-io/core/go/fino` | Code-generation options. |
 
-## Use in a protobuf module
-
-Add only the modules your schema imports:
-
-```yaml
-deps:
-  - buf.build/fino/core
-```
+## Use in a Fino project
 
 ```proto
 import "fino/core/time.proto";
@@ -27,22 +20,41 @@ message Book {
 }
 ```
 
+Fino resolves these shared proto imports from its bundled runtime descriptors.
 Generated Go code imports the corresponding shared package. Do not vendor or
 regenerate these proto files in individual services: a process must link each
 protobuf descriptor only once.
 
 ## Maintain
 
-Run Buf commands from the repository root:
+Generate from the protobuf contracts with Fino from the repository root:
 
 ```sh
-buf lint
-buf build
-buf push
+fino doctor --output=. --targets=api
+make build
 ```
 
-`buf push` publishes the module configured as `buf.build/fino/core`. The
-registry module name does not determine protobuf package names: consumers
-import `fino/options.proto` and use `(fino.model)`. Changing the protobuf
-package name, field numbers, extension names, or extension field numbers is a
-public compatibility change and must be treated as breaking.
+`make build` runs `fino build --output=. --targets=api` and places the enum
+helpers alongside their protobuf types in `go/fino/core`. This directory step
+is needed with Fino v1.7.1, which writes those helpers to `go/core`.
+The API-only configuration is recorded in `fino.yaml` with an empty backend.
+
+Generation updates:
+
+- `go/fino/`: protobuf Go code and enum formatting/JSON helpers.
+- `docs/`: Markdown documentation for the protobuf contracts.
+- `openapi/`: JSON schemas for the shared messages.
+- `.fino/ir/`: local descriptor artifacts, ignored by Git.
+
+Validate the Go packages:
+
+```sh
+make test
+```
+
+`go/Makefile` uses the Fino Go module template. The root Makefile forwards its
+test and check targets to that module: `test-fast`, `test-full`, `test-race`,
+`test-coverage`, `vet`, `lint`, `sec`, `vuln`, and `verify`.
+
+Changing the protobuf package name, field numbers, extension names, or extension
+field numbers is a public compatibility change and must be treated as breaking.

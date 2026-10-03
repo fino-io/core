@@ -1,0 +1,18 @@
+{
+  "title": "fino.core.Date",
+  "type": "object",
+  "properties": {
+    "day": {
+      "type": "integer",
+      "format": "int32"
+    },
+    "month": {
+      "type": "integer",
+      "format": "int32"
+    },
+    "year": {
+      "type": "integer",
+      "format": "int32"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "title": "fino.MessagingOptions",
+  "type": "object",
+  "properties": {
+    "subscription": {
+      "type": "boolean"
+    }
+  }
+}

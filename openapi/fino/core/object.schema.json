@@ -1,0 +1,12 @@
+{
+  "title": "fino.core.Object",
+  "type": "object",
+  "properties": {
+    "vals": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/components/schemas/fino.core.Value"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "title": "fino.core.Float64Value",
+  "type": "object",
+  "properties": {
+    "val": {
+      "type": "number",
+      "format": "double"
+    }
+  }
+}

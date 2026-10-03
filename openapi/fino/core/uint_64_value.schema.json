@@ -1,0 +1,10 @@
+{
+  "title": "fino.core.Uint64Value",
+  "type": "object",
+  "properties": {
+    "val": {
+      "type": "string",
+      "format": "uint64"
+    }
+  }
+}

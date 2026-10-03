@@ -1,0 +1,13 @@
+{
+  "title": "fino.core.Int64Values",
+  "type": "object",
+  "properties": {
+    "vals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "int64"
+      }
+    }
+  }
+}

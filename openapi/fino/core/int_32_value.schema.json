@@ -1,0 +1,10 @@
+{
+  "title": "fino.core.Int32Value",
+  "type": "object",
+  "properties": {
+    "val": {
+      "type": "integer",
+      "format": "int32"
+    }
+  }
+}

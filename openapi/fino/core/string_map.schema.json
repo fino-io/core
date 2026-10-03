@@ -1,0 +1,12 @@
+{
+  "title": "fino.core.StringMap",
+  "type": "object",
+  "properties": {
+    "vals": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}

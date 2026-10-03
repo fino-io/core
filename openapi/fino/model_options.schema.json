@@ -1,0 +1,15 @@
+{
+  "title": "fino.ModelOptions",
+  "type": "object",
+  "properties": {
+    "generate": {
+      "type": "boolean"
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

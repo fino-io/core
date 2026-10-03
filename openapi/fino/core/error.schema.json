@@ -1,0 +1,20 @@
+{
+  "title": "fino.core.Error",
+  "type": "object",
+  "properties": {
+    "code": {
+      "$ref": "#/components/schemas/fino.core.ErrorCode"
+    },
+    "details": {
+      "description": "a list if messages that carry the error details",
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/fino.core.Value"
+      }
+    },
+    "message": {
+      "description": "a developer-facing error message",
+      "type": "string"
+    }
+  }
+}

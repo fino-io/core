@@ -1,0 +1,28 @@
+{
+  "title": "fino.DBOptions",
+  "type": "object",
+  "properties": {
+    "autoIncrement": {
+      "type": "boolean"
+    },
+    "comment": {
+      "type": "string"
+    },
+    "default": {
+      "type": "string"
+    },
+    "index": {
+      "type": "string"
+    },
+    "len": {
+      "type": "string",
+      "format": "int64"
+    },
+    "null": {
+      "type": "boolean"
+    },
+    "uniqueIndex": {
+      "type": "string"
+    }
+  }
+}

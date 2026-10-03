@@ -1,0 +1,24 @@
+{
+  "title": "fino.core.File",
+  "type": "object",
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/fino.core.File"
+      }
+    },
+    "info": {
+      "$ref": "#/components/schemas/fino.core.File.Info"
+    },
+    "isDir": {
+      "type": "boolean"
+    },
+    "mode": {
+      "$ref": "#/components/schemas/fino.core.File.Mode"
+    },
+    "name": {
+      "type": "string"
+    }
+  }
+}
