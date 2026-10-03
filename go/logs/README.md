@@ -79,7 +79,15 @@ logs:
   output: console
   levelPattern: /log/level
   levelPort: 22001
+  file:
+    path: ./log/app.log
+    maxSize: 100
+    maxBackups: 10
+    maxAge: 30
+    encode: json
 ```
+
+`output: console` 输出到控制台；需要文件输出时设为 `file`。`file` 中的配置控制日志路径和轮转。
 
 ## 动态级别接口
 

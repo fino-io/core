@@ -1,9 +1,0 @@
-{
-  "title": "fino.core.BoolValue",
-  "type": "object",
-  "properties": {
-    "val": {
-      "type": "boolean"
-    }
-  }
-}

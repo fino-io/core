@@ -1,9 +1,0 @@
-{
-  "title": "fino.core.StringValue",
-  "type": "object",
-  "properties": {
-    "val": {
-      "type": "string"
-    }
-  }
-}
