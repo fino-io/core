@@ -8,13 +8,9 @@ func Now() *Timestamp {
 	return FromTime(time.Now())
 }
 
-// FromTime covert form time.Time to Timestamp
+// FromTime converts time.Time to Timestamp.
 func FromTime(t time.Time) *Timestamp {
-	sec := t.Unix()
-	return &Timestamp{
-		Seconds:     sec,
-		Nanoseconds: int64ToInt32(t.UnixNano() - sec*1e9),
-	}
+	return (&Timestamp{}).FromTime(t)
 }
 
 func Since(t *Timestamp) *Duration {
@@ -33,9 +29,8 @@ func Until(t *Timestamp) *Duration {
 
 func (x *Timestamp) FromTime(t time.Time) *Timestamp {
 	if x != nil {
-		ft := FromTime(t)
-		x.Seconds = ft.Seconds
-		x.Nanoseconds = ft.Nanoseconds
+		x.Seconds = t.Unix()
+		x.Nanoseconds = int32(t.Nanosecond())
 	}
 	return x
 }
@@ -48,46 +43,28 @@ func (x *Timestamp) ToTime() time.Time {
 }
 
 func (x *Timestamp) After(u *Timestamp) bool {
-	if x != nil && u != nil {
-		if x != u {
-			return x.ToTime().After(u.ToTime())
-		}
-	}
-	return false
+	return x != nil && u != nil && x.ToTime().After(u.ToTime())
 }
 
 func (x *Timestamp) Before(u *Timestamp) bool {
-	if x != nil && u != nil {
-		if x != u {
-			return x.ToTime().Before(u.ToTime())
-		}
-	}
-	return false
+	return x != nil && u != nil && x.ToTime().Before(u.ToTime())
 }
 
 func (x *Timestamp) Equal(u *Timestamp) bool {
-	if x != nil && u != nil {
-		if x == u {
-			return true
-		}
-		return x.ToTime().Equal(u.ToTime())
-	}
-	return false
+	return x != nil && u != nil && x.ToTime().Equal(u.ToTime())
 }
 
 func (x *Timestamp) Compare(u *Timestamp) int {
-	if x != nil {
-		if u != nil {
-			return x.ToTime().Compare(u.ToTime())
-		} else {
-			return 1
-		}
+	if x == u {
+		return 0
 	}
-
-	if u != nil {
+	if x == nil {
 		return -1
 	}
-	return 0
+	if u == nil {
+		return 1
+	}
+	return x.ToTime().Compare(u.ToTime())
 }
 
 func (x *Timestamp) Date() *Date {

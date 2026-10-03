@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 )
@@ -11,7 +12,7 @@ const (
 )
 
 func IsQuotedString(str, quote string) bool {
-	return strings.HasPrefix(str, quote) && strings.HasSuffix(str, quote)
+	return quote != "" && len(str) >= 2*len(quote) && strings.HasPrefix(str, quote) && strings.HasSuffix(str, quote)
 }
 
 func Quote(str string) string {
@@ -23,17 +24,9 @@ func Unquote(str string) (string, error) {
 }
 
 func QuoteString(str string) string {
-	if strings.HasPrefix(str, DoubleQuote) {
-		if strings.HasSuffix(str, DoubleQuote) {
-			return str
-		} else {
-			return `"\"` + str[1:] + DoubleQuote
-		}
-	} else {
-		if strings.HasSuffix(str, DoubleQuote) {
-			return DoubleQuote + str[:len(str)-1] + `\""`
-		} else {
-			return DoubleQuote + str + DoubleQuote
-		}
+	if IsQuotedString(str, DoubleQuote) && json.Valid([]byte(str)) {
+		return str
 	}
+	quoted, _ := json.Marshal(str)
+	return string(quoted)
 }

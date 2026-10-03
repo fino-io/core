@@ -3,7 +3,10 @@ package core
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"io"
 	"math"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -24,22 +27,16 @@ func NewValueCodec() *ValueCodec {
 }
 
 func (codec *ValueCodec) DecodeAny(a jsoniter.Any) (*Value, error) {
+	if err := a.LastError(); err != nil {
+		return nil, err
+	}
 	switch a.ValueType() {
 	case jsoniter.NilValue:
-		return &Value{}, nil
+		return NewNullValue(), nil
 	case jsoniter.BoolValue:
 		return NewBoolValue(a.ToBool()), nil
 	case jsoniter.NumberValue:
-		floatVal := a.ToFloat64()
-		intVal := a.ToInt64()
-		uintVal := a.ToUint64()
-
-		if intVal == 0 && uintVal > 0 { // > int64 max
-			return NewUint64Value(uintVal), nil
-		} else if floatVal != float64(intVal) {
-			return NewFloat64Value(floatVal), nil
-		}
-		return NewInt64Value(intVal), nil
+		return parseNumberValue(a.ToString())
 	case jsoniter.StringValue:
 		str := a.ToString()
 		if strings.HasPrefix(str, Base64Prefix) {
@@ -62,20 +59,63 @@ func (codec *ValueCodec) DecodeAny(a jsoniter.Any) (*Value, error) {
 		}
 	case jsoniter.ObjectValue:
 		val := make(map[string]*Value)
-		a.ToVal(&val)
+		if err := jsoniter.UnmarshalFromString(a.ToString(), &val); err != nil {
+			return nil, err
+		}
 		return NewMapValue(val), nil
 	case jsoniter.ArrayValue:
 		val := make([]*Value, 0)
-		a.ToVal(&val)
+		if err := jsoniter.UnmarshalFromString(a.ToString(), &val); err != nil {
+			return nil, err
+		}
 		return NewArrayValue(val...), nil
 	default:
 		return nil, errors.New("type is invalid")
 	}
 }
 
+func parseNumberValue(raw string) (*Value, error) {
+	if value, err := strconv.ParseInt(raw, 10, 64); err == nil {
+		return NewInt64Value(value), nil
+	}
+	if value, err := strconv.ParseUint(raw, 10, 64); err == nil {
+		return NewUint64Value(value), nil
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+		return nil, fmt.Errorf("invalid JSON number: %q", raw)
+	}
+	return NewFloat64Value(value), nil
+}
+
 func (codec *ValueCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
+	// Decode collections on the same iterator so nested errors and depth limits
+	// propagate without reparsing every enclosing object or array.
+	switch iter.WhatIsNext() {
+	case jsoniter.ObjectValue:
+		var values map[string]*Value
+		iter.ReadVal(&values)
+		if iter.Error == nil {
+			(*Value)(ptr).Val = NewMapValue(values).Val
+		}
+		return
+	case jsoniter.ArrayValue:
+		var values []*Value
+		iter.ReadVal(&values)
+		if iter.Error == nil {
+			(*Value)(ptr).Val = NewArrayValue(values...).Val
+		}
+		return
+	}
 	a := iter.ReadAny()
-	v, _ := codec.DecodeAny(a)
+	if iter.Error != nil && iter.Error != io.EOF {
+		return
+	}
+	v, err := codec.DecodeAny(a)
+	if err != nil {
+		iter.ReportError("ValueCodec.Decode", err.Error())
+		return
+	}
 	(*Value)(ptr).Val = v.Val
 }
 
@@ -86,6 +126,10 @@ func (codec *ValueCodec) IsEmpty(ptr unsafe.Pointer) bool {
 
 func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	val := (*Value)(ptr)
+	if val == nil {
+		stream.WriteNil()
+		return
+	}
 	switch v := val.Val.(type) {
 	case *Value_BoolValue:
 		stream.WriteBool(v.BoolValue)
@@ -94,15 +138,19 @@ func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	case *Value_NegativeValue:
 		stream.WriteInt64(val.GetInt64())
 	case *Value_NumberValue:
-		stream.WriteFloat64Lossy(v.NumberValue)
+		if math.IsNaN(v.NumberValue) || math.IsInf(v.NumberValue, 0) {
+			stream.WriteVal(val.AsInterface())
+		} else {
+			stream.WriteFloat64(v.NumberValue)
+		}
 	case *Value_StringValue:
 		stream.WriteString(v.StringValue)
 	case *Value_BytesValue:
 		stream.WriteString(Base64Prefix + base64.StdEncoding.EncodeToString(v.BytesValue))
 	case *Value_ValuesValue:
-		stream.WriteVal(v.ValuesValue.Vals)
+		stream.WriteVal(v.ValuesValue)
 	case *Value_ObjectValue:
-		stream.WriteVal(v.ObjectValue.Vals)
+		stream.WriteVal(v.ObjectValue)
 	default:
 		stream.WriteNil()
 	}

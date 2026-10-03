@@ -3,11 +3,10 @@ package core
 import (
 	"database/sql/driver"
 	"fmt"
-	"reflect"
 	"time"
 )
 
-// Value Implement driver.Valuer and sql.Scanner interfaces on Brand
+// Value implements driver.Valuer for Timestamp.
 func (x *Timestamp) Value() (driver.Value, error) {
 	if x != nil {
 		return x.ToTime(), nil
@@ -16,13 +15,14 @@ func (x *Timestamp) Value() (driver.Value, error) {
 	return nil, nil
 }
 
-func (x *Timestamp) Scan(src interface{}) error {
-	v := reflect.ValueOf(src)
-	if !v.IsValid() || (v.CanAddr() && v.IsNil()) {
-		return nil
+func (x *Timestamp) Scan(src any) error {
+	if x == nil {
+		return fmt.Errorf("Timestamp.Scan: nil receiver")
 	}
 
 	switch bs := src.(type) {
+	case nil:
+		x.Seconds, x.Nanoseconds = 0, 0
 	case []byte:
 		return x.Parse(string(bs))
 	case string:

@@ -30,7 +30,7 @@ func (codec *UrlStringCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator)
 func (codec *UrlStringCodec) IsEmpty(ptr unsafe.Pointer) bool {
 	url := codec.url(ptr)
 	if url != nil {
-		if checker, ok := interface{}(url).(EmptyChecker); ok {
+		if checker, ok := any(url).(EmptyChecker); ok {
 			return checker.IsEmpty()
 		}
 		return false
@@ -72,7 +72,7 @@ func (codec *UrlStructCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator)
 func (codec *UrlStructCodec) IsEmpty(ptr unsafe.Pointer) bool {
 	url := (*Url)(codec.bareUrl(ptr))
 	if url != nil {
-		if checker, ok := interface{}(url).(EmptyChecker); ok {
+		if checker, ok := any(url).(EmptyChecker); ok {
 			return checker.IsEmpty()
 		}
 		return false

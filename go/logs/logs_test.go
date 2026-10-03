@@ -3,12 +3,16 @@ package logs
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -18,9 +22,60 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+func TestLoggerWithFieldsOverrideOnce(t *testing.T) {
+	buf := &bytes.Buffer{}
+	logger := newZapLogger(&Config{Level: "info", Encode: "json", InitFields: map[string]any{"source": "initial"}}, buf)
+	child := logger.With(Field{Key: "source", Value: "base"}, Field{Key: "id", Value: 7})
+	child = child.With(Field{Key: "source", Value: "child"})
+	NewService(child).Infow("ready", "source", "entry")
+	require.Equal(t, 1, strings.Count(buf.String(), `"source":`))
+	require.Equal(t, 1, strings.Count(buf.String(), `"id":`))
+	require.Contains(t, buf.String(), `"source":"entry"`)
+	buf.Reset()
+	NewService(logger).Info("parent")
+	require.Contains(t, buf.String(), `"source":"initial"`)
+	require.NotContains(t, buf.String(), `"id":`)
+}
+
+func TestLogCaller(t *testing.T) {
+	buf := &bytes.Buffer{}
+	logger := newZapLogger(&Config{Level: "info", Encode: "json"}, buf)
+	svc := NewService(logger)
+	previous := DefaultLogger()
+	SetLogger(logger)
+	t.Cleanup(func() { SetLogger(previous) })
+	for _, write := range []func(){func() { svc.Info("caller") }, func() { Info("caller") }} {
+		buf.Reset()
+		write()
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+		require.Contains(t, entry["caller"], "logs_test.go:")
+		require.NotContains(t, entry["caller"], "logs.go:")
+	}
+	_, file, line, _ := runtime.Caller(0)
+	svc.Info("exact caller")
+	entries := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal([]byte(entries[len(entries)-1]), &entry))
+	require.Equal(t, filepath.Join(filepath.Base(filepath.Dir(file)), filepath.Base(file))+":"+fmt.Sprint(line+1), entry["caller"])
+}
+
 func TestNewErrorf(t *testing.T) {
 	err := NewErrorf("this is %s", "NewErrorf")
 	require.Error(t, err)
+}
+
+func TestNewErrorfLogsWrappedError(t *testing.T) {
+	buf := &bytes.Buffer{}
+	svc := NewService(newZapLogger(&Config{Level: "info", Encode: "json"}, buf))
+	cause := errors.New("connection failed")
+
+	err := svc.NewErrorf("lookup: %w", cause)
+
+	require.ErrorIs(t, err, cause)
+	var entry map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+	require.Equal(t, err.Error(), entry["message"])
 }
 
 func TestLoggerLevelAndFields(t *testing.T) {

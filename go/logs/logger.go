@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -39,7 +40,7 @@ type Entry struct {
 
 type zapLogger struct {
 	level  zap.AtomicLevel
-	sugar  *zap.SugaredLogger
+	logger *zap.Logger
 	fields []Field
 }
 
@@ -61,8 +62,11 @@ func newZapLogger(cfg *Config, sink io.Writer) *zapLogger {
 	}
 
 	encode := cfg.Encode
-	if strings.EqualFold(cfg.Output, "file") && cfg.File.Encode != "" {
+	if strings.EqualFold(cfg.Output, "file") {
 		encode = cfg.File.Encode
+		if encode == "" {
+			encode = "json"
+		}
 	}
 
 	encoder := newEncoder(encode)
@@ -70,12 +74,14 @@ func newZapLogger(cfg *Config, sink io.Writer) *zapLogger {
 	core := zapcore.NewCore(encoder, writeSyncer, level)
 	base := zap.New(core, zap.AddCaller())
 
-	if len(cfg.InitFields) > 0 {
-		fields := make([]zap.Field, 0, len(cfg.InitFields))
-		for key, value := range cfg.InitFields {
-			fields = append(fields, zap.Any(key, value))
-		}
-		base = base.With(fields...)
+	keys := make([]string, 0, len(cfg.InitFields))
+	for key := range cfg.InitFields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	fields := make([]Field, 0, len(keys))
+	for _, key := range keys {
+		fields = append(fields, Field{Key: key, Value: cfg.InitFields[key]})
 	}
 
 	if len(cfg.LevelPattern) > 0 && cfg.LevelPort > 0 {
@@ -85,8 +91,9 @@ func newZapLogger(cfg *Config, sink io.Writer) *zapLogger {
 	}
 
 	return &zapLogger{
-		level: level,
-		sugar: base.Sugar(),
+		level:  level,
+		logger: base,
+		fields: fields,
 	}
 }
 
@@ -114,25 +121,22 @@ func newEncoder(encode string) zapcore.Encoder {
 
 func newWriteSyncer(cfg *Config, sink io.Writer) zapcore.WriteSyncer {
 	if sink != nil {
-		return zapcore.AddSync(sink)
+		return zapcore.Lock(zapcore.AddSync(sink))
 	}
 	if strings.EqualFold(cfg.Output, "file") {
 		fileCfg := cfg.File
 		if fileCfg.Path == "" {
 			fileCfg.Path = NewDefaultConfig().File.Path
 		}
-		if fileCfg.Encode == "" {
-			fileCfg.Encode = "json"
-		}
-		return zapcore.AddSync(&lumberjack.Logger{
+		return zapcore.Lock(zapcore.AddSync(&lumberjack.Logger{
 			Filename:   fileCfg.Path,
 			MaxSize:    fileCfg.MaxSize,
 			MaxBackups: fileCfg.MaxBackups,
 			MaxAge:     fileCfg.MaxAge,
 			Compress:   fileCfg.Compress,
-		})
+		}))
 	}
-	return zapcore.AddSync(os.Stdout)
+	return zapcore.Lock(zapcore.AddSync(os.Stdout))
 }
 
 func levelHandler(level *zap.AtomicLevel, pattern string) http.Handler {
@@ -178,16 +182,6 @@ func jsoniterReflectedEncoder(w io.Writer) zapcore.ReflectedEncoder {
 	return enc
 }
 
-func (l *zapLogger) clone() *zapLogger {
-	fields := make([]Field, len(l.fields))
-	copy(fields, l.fields)
-	return &zapLogger{
-		level:  l.level,
-		sugar:  l.sugar,
-		fields: fields,
-	}
-}
-
 func (l *zapLogger) SetLevel(level Level) {
 	l.level.SetLevel(zapcore.Level(level))
 }
@@ -197,24 +191,15 @@ func (l *zapLogger) GetLevel() Level {
 }
 
 func (l *zapLogger) With(fields ...Field) Logger {
-	if len(fields) == 0 {
-		return l.clone()
-	}
-
-	kv := make([]any, 0, len(fields)*2)
-	for _, field := range fields {
-		kv = append(kv, field.Key, field.Value)
-	}
-
 	return &zapLogger{
 		level:  l.level,
-		sugar:  l.sugar.With(kv...),
-		fields: append(append([]Field{}, l.fields...), fields...),
+		logger: l.logger,
+		fields: mergeFields(l.fields, fields),
 	}
 }
 
 func (l *zapLogger) Log(_ context.Context, entry Entry) {
-	if l == nil || l.sugar == nil {
+	if l == nil || l.logger == nil {
 		return
 	}
 
@@ -222,73 +207,14 @@ func (l *zapLogger) Log(_ context.Context, entry Entry) {
 	if callerSkip <= 0 {
 		callerSkip = 1
 	}
-
-	sugar := l.sugar.WithOptions(zap.AddCallerSkip(callerSkip))
-	kv := fieldsToKeyValues(l.fields, entry.Fields)
-	switch entry.Level {
-	case DebugLevel:
-		if len(kv) == 0 {
-			sugar.Debug(entry.Message)
-			return
-		}
-		sugar.Debugw(entry.Message, kv...)
-	case InfoLevel:
-		if len(kv) == 0 {
-			sugar.Info(entry.Message)
-			return
-		}
-		sugar.Infow(entry.Message, kv...)
-	case WarnLevel:
-		if len(kv) == 0 {
-			sugar.Warn(entry.Message)
-			return
-		}
-		sugar.Warnw(entry.Message, kv...)
-	case ErrorLevel:
-		if len(kv) == 0 {
-			sugar.Error(entry.Message)
-			return
-		}
-		sugar.Errorw(entry.Message, kv...)
-	case DPanicLevel:
-		if len(kv) == 0 {
-			sugar.DPanic(entry.Message)
-			return
-		}
-		sugar.DPanicw(entry.Message, kv...)
-	case PanicLevel:
-		if len(kv) == 0 {
-			sugar.Panic(entry.Message)
-			return
-		}
-		sugar.Panicw(entry.Message, kv...)
-	case FatalLevel:
-		if len(kv) == 0 {
-			sugar.Fatal(entry.Message)
-			return
-		}
-		sugar.Fatalw(entry.Message, kv...)
-	default:
-		if len(kv) == 0 {
-			sugar.Info(entry.Message)
-			return
-		}
-		sugar.Infow(entry.Message, kv...)
+	level := entry.Level
+	if level < DebugLevel || level > FatalLevel {
+		level = InfoLevel
 	}
-}
-
-func fieldsToKeyValues(base []Field, extra []Field) []any {
-	total := len(base) + len(extra)
-	if total == 0 {
-		return nil
+	fields := mergeFields(l.fields, entry.Fields)
+	zapFields := make([]zap.Field, 0, len(fields))
+	for _, field := range fields {
+		zapFields = append(zapFields, zap.Any(field.Key, field.Value))
 	}
-
-	kv := make([]any, 0, total*2)
-	for _, field := range base {
-		kv = append(kv, field.Key, field.Value)
-	}
-	for _, field := range extra {
-		kv = append(kv, field.Key, field.Value)
-	}
-	return kv
+	l.logger.WithOptions(zap.AddCallerSkip(callerSkip)).Log(zapcore.Level(level), entry.Message, zapFields...)
 }

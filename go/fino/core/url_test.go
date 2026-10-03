@@ -3,7 +3,28 @@ package core
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestURLRoundTripEscapedAuthority(t *testing.T) {
+	for _, raw := range []string{
+		"https://[::1]/path", "https://[::1]:8080/path",
+		"https://user%40name:pass%3Aword%40host@example.com/path",
+	} {
+		parsed, err := ParseUrl(raw)
+		require.NoError(t, err)
+		require.Equal(t, raw, parsed.Format())
+	}
+}
+
+func TestURLParseErrorKeepsPreviousValue(t *testing.T) {
+	parsed, err := ParseUrl("https://example.com/original")
+	require.NoError(t, err)
+	require.Error(t, parsed.Parse("https://other.example/path?invalid=%zz"))
+	require.Equal(t, "https://example.com/original", parsed.Format())
+	require.Error(t, parsed.Parse("mailto:user@example.com"))
+}
 
 func TestNewUrl(t *testing.T) {
 	tests := []struct {

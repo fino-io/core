@@ -6,8 +6,41 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	jsoniter "github.com/json-iterator/go"
 )
+
+func TestQueryUnmarshalKeepsRawValues(t *testing.T) {
+	raw := []string{`a"b`, `a\b`, "a\nb", `"quoted"`}
+	query := NewUrlQuery("foo", raw, 1, "ignored")
+	for i := 0; i < 2; i++ {
+		var values []string
+		require.NoError(t, query.Unmarshal("foo", &values))
+		require.Equal(t, raw, values)
+		require.Equal(t, raw, query.Vals["foo"].Vals)
+	}
+}
+
+func TestQueryZeroValue(t *testing.T) {
+	query := &Url_Query{}
+	query.Add("a", 1).Set("b", "two")
+	require.Equal(t, []string{"1"}, query.Vals["a"].Vals)
+	require.Equal(t, []string{"two"}, query.Vals["b"].Vals)
+}
+
+func TestUnmarshalParamInvalidDestination(t *testing.T) {
+	for _, value := range []any{nil, (*string)(nil), "not a pointer", 1} {
+		require.Error(t, UnmarshalParam("value", value))
+		require.Error(t, NewUrlQuery("key", "value").Unmarshal("key", value))
+	}
+}
+
+func TestUnmarshalParamEscapedList(t *testing.T) {
+	var values []string
+	require.NoError(t, UnmarshalParam(`"a,\"b", "c\\d"`, &values))
+	require.Equal(t, []string{`a,"b`, `c\d`}, values)
+}
 
 func TestNewUrlQueryFrom(t *testing.T) {
 	tests := []struct {
@@ -133,6 +166,9 @@ func TestQuery_Unmarshal(t *testing.T) {
 		{name: "string-slice-5", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`["bar", "bba"]`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{"bar", "bba"}, wantErr: false},
 		{name: "int-slice-1", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123", "234"}}}}, k: "foo", typ: reflect.TypeOf([]int32{}), want: []int32{123, 234}, wantErr: false},
 		{name: "int-slice-2", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123,234"}}}}, k: "foo", typ: reflect.TypeOf([]int32{}), want: []int32{123, 234}, wantErr: false},
+		{name: "string-array", query: NewUrlQuery("foo", []string{"bar", "bba"}), k: "foo", typ: reflect.TypeOf([2]string{}), want: [2]string{"bar", "bba"}},
+		{name: "timestamp", query: NewUrlQuery("foo", TimestampString1), k: "foo", typ: reflect.TypeOf(Timestamp{}), want: Timestamp{Seconds: Timestamp1}},
+		{name: "timestamp-slice", query: NewUrlQuery("foo", []string{TimestampString1, TimestampString2}), k: "foo", typ: reflect.TypeOf([]*Timestamp{}), want: []*Timestamp{{Seconds: Timestamp1}, {Seconds: Timestamp1 + 60}}},
 		// {name: "int32Value-slice-1", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123,234"}}}}, k: "foo", typ: reflect.TypeOf([]*Int32Value{}), want: []*Int32Value{{Value: 123}, {Value: 234}}, wantErr: false},
 	}
 	for _, tt := range tests {
@@ -159,6 +195,7 @@ func TestUnmarshalParam(t *testing.T) {
 	}{
 		{name: "string-slice-1", str: "bar,bba", typ: reflect.TypeOf([]string{}), want: []string{"bar", "bba"}, wantErr: false},
 		{name: "string-slice-2", str: `"bar", "bba"`, typ: reflect.TypeOf([]string{}), want: []string{"bar", "bba"}, wantErr: false},
+		{name: "timestamp-slice", str: TimestampString1 + "," + TimestampString2, typ: reflect.TypeOf([]*Timestamp{}), want: []*Timestamp{{Seconds: Timestamp1}, {Seconds: Timestamp1 + 60}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -191,23 +228,6 @@ func Test_splitQuoteString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := splitQuotedString(tt.s); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("splitQuoteString() = %#v, want %#v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_isStringSlice(t *testing.T) {
-	tests := []struct {
-		name string
-		v    any
-		want bool
-	}{
-		{name: "strings", v: []string{}, want: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isStringSlice(tt.v); got != tt.want {
-				t.Errorf("isStringSlice() = %v, want %v", got, tt.want)
 			}
 		})
 	}

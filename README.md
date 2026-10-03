@@ -8,6 +8,9 @@ Shared protobuf contracts and Go runtime packages for fino projects.
 | `github.com/fino-io/core/go/fino` | Code-generation options. |
 | `github.com/fino-io/core/go/logs` | Shared logging runtime. |
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the function map, dependency
+boundaries, runtime conventions, and known limitations.
+
 ## Use in a Fino project
 
 ```proto

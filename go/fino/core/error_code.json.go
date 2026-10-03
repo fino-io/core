@@ -34,7 +34,7 @@ func (codec *ErrorCodeStringCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Ite
 func (codec *ErrorCodeStringCodec) IsEmpty(ptr unsafe.Pointer) bool {
 	errorCode := codec.errorCode(ptr)
 	if errorCode != nil {
-		if checker, ok := interface{}(errorCode).(EmptyChecker); ok {
+		if checker, ok := any(errorCode).(EmptyChecker); ok {
 			return checker.IsEmpty()
 		}
 		return false
@@ -72,7 +72,7 @@ func (codec *ErrorCodeStructCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Ite
 func (codec *ErrorCodeStructCodec) IsEmpty(ptr unsafe.Pointer) bool {
 	errorCode := (*ErrorCode)(codec.bareErrorCode(ptr))
 	if errorCode != nil {
-		if checker, ok := interface{}(errorCode).(EmptyChecker); ok {
+		if checker, ok := any(errorCode).(EmptyChecker); ok {
 			return checker.IsEmpty()
 		}
 		return false

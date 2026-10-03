@@ -990,7 +990,7 @@ func file_fino_core_boxed_proto_rawDescGZIP() []byte {
 }
 
 var file_fino_core_boxed_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
-var file_fino_core_boxed_proto_goTypes = []interface{}{
+var file_fino_core_boxed_proto_goTypes = []any{
 	(*BoolValue)(nil),     // 0: fino.core.BoolValue
 	(*Int32Value)(nil),    // 1: fino.core.Int32Value
 	(*Int64Value)(nil),    // 2: fino.core.Int64Value
@@ -1030,7 +1030,7 @@ func file_fino_core_boxed_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_fino_core_boxed_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*BoolValue); i {
 			case 0:
 				return &v.state
@@ -1042,7 +1042,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*Int32Value); i {
 			case 0:
 				return &v.state
@@ -1054,7 +1054,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*Int64Value); i {
 			case 0:
 				return &v.state
@@ -1066,7 +1066,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[3].Exporter = func(v any, i int) any {
 			switch v := v.(*Uint32Value); i {
 			case 0:
 				return &v.state
@@ -1078,7 +1078,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*Uint64Value); i {
 			case 0:
 				return &v.state
@@ -1090,7 +1090,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[5].Exporter = func(v any, i int) any {
 			switch v := v.(*Float32Value); i {
 			case 0:
 				return &v.state
@@ -1102,7 +1102,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*Float64Value); i {
 			case 0:
 				return &v.state
@@ -1114,7 +1114,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[7].Exporter = func(v any, i int) any {
 			switch v := v.(*StringValue); i {
 			case 0:
 				return &v.state
@@ -1126,7 +1126,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[8].Exporter = func(v any, i int) any {
 			switch v := v.(*BytesValue); i {
 			case 0:
 				return &v.state
@@ -1138,7 +1138,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[9].Exporter = func(v any, i int) any {
 			switch v := v.(*BoolValues); i {
 			case 0:
 				return &v.state
@@ -1150,7 +1150,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[10].Exporter = func(v any, i int) any {
 			switch v := v.(*Int32Values); i {
 			case 0:
 				return &v.state
@@ -1162,7 +1162,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[11].Exporter = func(v any, i int) any {
 			switch v := v.(*Int64Values); i {
 			case 0:
 				return &v.state
@@ -1174,7 +1174,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[12].Exporter = func(v any, i int) any {
 			switch v := v.(*Uint32Values); i {
 			case 0:
 				return &v.state
@@ -1186,7 +1186,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[13].Exporter = func(v any, i int) any {
 			switch v := v.(*Uint64Values); i {
 			case 0:
 				return &v.state
@@ -1198,7 +1198,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[14].Exporter = func(v any, i int) any {
 			switch v := v.(*Float32Values); i {
 			case 0:
 				return &v.state
@@ -1210,7 +1210,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[15].Exporter = func(v any, i int) any {
 			switch v := v.(*Float64Values); i {
 			case 0:
 				return &v.state
@@ -1222,7 +1222,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[16].Exporter = func(v any, i int) any {
 			switch v := v.(*StringValues); i {
 			case 0:
 				return &v.state
@@ -1234,7 +1234,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[17].Exporter = func(v any, i int) any {
 			switch v := v.(*StringMap); i {
 			case 0:
 				return &v.state
@@ -1246,7 +1246,7 @@ func file_fino_core_boxed_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_boxed_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_boxed_proto_msgTypes[18].Exporter = func(v any, i int) any {
 			switch v := v.(*StringsMap); i {
 			case 0:
 				return &v.state

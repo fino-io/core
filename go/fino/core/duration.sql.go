@@ -3,7 +3,7 @@ package core
 import (
 	"database/sql/driver"
 	"fmt"
-	"reflect"
+	"math"
 	"strconv"
 )
 
@@ -15,22 +15,31 @@ func (x *Duration) Value() (driver.Value, error) {
 	return nil, nil
 }
 
-func (x *Duration) Scan(src interface{}) error {
-	if v := reflect.ValueOf(src); !v.IsValid() || (v.CanAddr() && v.IsNil()) {
-		return nil
+func (x *Duration) Scan(src any) error {
+	if x == nil {
+		return fmt.Errorf("Duration.Scan: nil receiver")
 	}
 
 	switch duration := src.(type) {
+	case nil:
+		x.Seconds, x.Nanoseconds = 0, 0
+	case int64:
+		x.Seconds, x.Nanoseconds = duration, 0
 	case float64:
+		if math.IsNaN(duration) || math.IsInf(duration, 0) {
+			return fmt.Errorf("Duration.Scan: non-finite seconds")
+		}
 		x.FromSeconds(duration)
+	case []byte:
+		return x.Scan(string(duration))
 	case string:
 		seconds, err := strconv.ParseFloat(duration, 64)
 		if err != nil {
 			return err
 		}
-		x.FromSeconds(seconds)
+		return x.Scan(seconds)
 	default:
-		return fmt.Errorf("could not not Decode type %T -> %T", src, x)
+		return fmt.Errorf("could not decode type %T -> %T", src, x)
 	}
 	return nil
 }

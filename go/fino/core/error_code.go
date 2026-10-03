@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 )
@@ -33,16 +32,18 @@ func (x *ErrorCode) Parse(code string) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse error code %w", err)
 		}
-		x.Code = int32(v)
+		parsed := NewErrorCode(int32(v))
+		x.Code = parsed.Code
+		x.Name = parsed.Name
+		x.Description = parsed.Description
+		x.HttpStatusCode = parsed.HttpStatusCode
 	}
 	return nil
 }
 
 func (x *ErrorCode) Format() string {
 	if x != nil {
-		buffer := bytes.Buffer{}
-		buffer.WriteString(strconv.FormatInt(int64(x.Code), 10))
-		return buffer.String()
+		return strconv.FormatInt(int64(x.Code), 10)
 	}
 	return ""
 }

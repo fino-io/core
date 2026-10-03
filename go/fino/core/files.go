@@ -4,10 +4,7 @@ import "os"
 
 // CreatDir create dir -r
 func CreatDir(path string) error {
-	if !IsExist(path) {
-		return os.MkdirAll(path, 0750)
-	}
-	return nil
+	return os.MkdirAll(path, 0750)
 }
 
 // IsExist check path is exist, return true if exist

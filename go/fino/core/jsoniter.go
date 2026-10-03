@@ -1,26 +1,11 @@
 package core
 
-import (
-	"sync"
+import jsoniter "github.com/json-iterator/go"
 
-	jsoniter "github.com/json-iterator/go"
-)
-
-var (
-	registerJSONEncoderTypes     map[string]jsoniter.ValEncoder
-	registerJSONEncoderTypesOnce = &sync.Once{}
-
-	registerJSONEncoderTypeFields     map[string]jsoniter.ValEncoder
-	registerJSONEncoderTypeFieldsOnce = &sync.Once{}
-)
-
+// Register codecs during package initialization, before any encoding or decoding.
+// jsoniter caches codecs, so runtime registration is not supported.
 func RegisterJSONTypeEncoder(typ string, encoder jsoniter.ValEncoder) {
 	jsoniter.RegisterTypeEncoder(typ, encoder)
-
-	registerJSONEncoderTypesOnce.Do(func() {
-		registerJSONEncoderTypes = make(map[string]jsoniter.ValEncoder)
-	})
-	registerJSONEncoderTypes[typ] = encoder
 }
 
 func RegisterJSONTypeDecoder(typ string, decoder jsoniter.ValDecoder) {
@@ -29,11 +14,6 @@ func RegisterJSONTypeDecoder(typ string, decoder jsoniter.ValDecoder) {
 
 func RegisterJSONFieldEncoder(typ, field string, encoder jsoniter.ValEncoder) {
 	jsoniter.RegisterFieldEncoder(typ, field, encoder)
-
-	registerJSONEncoderTypeFieldsOnce.Do(func() {
-		registerJSONEncoderTypeFields = make(map[string]jsoniter.ValEncoder)
-	})
-	registerJSONEncoderTypeFields[typ+"."+field] = encoder
 }
 
 func RegisterJSONFieldDecoder(typ, field string, decoder jsoniter.ValDecoder) {

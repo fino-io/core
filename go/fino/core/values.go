@@ -1,6 +1,6 @@
 package core
 
-import "google.golang.org/protobuf/encoding/protojson"
+import jsoniter "github.com/json-iterator/go"
 
 const ValuesTypeName = "Values"
 const ValuesTypeFullName = "core.Values"
@@ -22,6 +22,9 @@ func NewValues(v []any) (*Values, error) {
 // AsSlice converts x to a general-purpose Go slice.
 // The slice elements are converted by calling Value.AsInterface.
 func (x *Values) AsSlice() []any {
+	if x == nil {
+		return nil
+	}
 	vals := x.GetVals()
 	vs := make([]any, len(vals))
 	for i, v := range vals {
@@ -31,9 +34,17 @@ func (x *Values) AsSlice() []any {
 }
 
 func (x *Values) MarshalJSON() ([]byte, error) {
-	return protojson.Marshal(x)
+	if x == nil {
+		return []byte("null"), nil
+	}
+	return jsoniter.Marshal(x.Vals)
 }
 
 func (x *Values) UnmarshalJSON(b []byte) error {
-	return protojson.Unmarshal(b, x)
+	var values []*Value
+	if err := jsoniter.Unmarshal(b, &values); err != nil {
+		return err
+	}
+	x.Vals = values
+	return nil
 }

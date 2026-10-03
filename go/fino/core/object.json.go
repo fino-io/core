@@ -14,39 +14,23 @@ func init() {
 type ObjectCodec struct{}
 
 func (codec *ObjectCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-	obj := (*Object)(ptr)
-	if iter.WhatIsNext() == jsoniter.NilValue {
-		iter.ReadNil()
-		obj.Vals = nil
-		return
-	}
-
-	a := iter.ReadAny()
-	if a.ValueType() != jsoniter.ObjectValue {
+	next := iter.WhatIsNext()
+	if next != jsoniter.ObjectValue && next != jsoniter.NilValue {
 		iter.ReportError("ObjectCodec.Decode", "expected JSON object")
 		return
 	}
 
-	obj.Vals = make(map[string]*Value, a.Size())
-	for _, k := range a.Keys() {
-		val, err := NewValueCodec().DecodeAny(a.Get(k))
-		if err != nil {
-			iter.ReportError("ObjectCodec.Decode", err.Error())
-		}
-		obj.Vals[k] = val
+	var values map[string]*Value
+	iter.ReadVal(&values)
+	if iter.Error == nil {
+		(*Object)(ptr).Vals = values
 	}
 }
 
 func (codec *ObjectCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	obj := (*Object)(ptr)
-	return obj == nil || len(obj.Vals) == 0
+	return (*Object)(ptr).IsEmpty()
 }
 
 func (codec *ObjectCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
-	obj := (*Object)(ptr)
-	if obj == nil || obj.Vals == nil {
-		stream.WriteNil()
-		return
-	}
-	stream.WriteVal(obj.Vals)
+	stream.WriteVal((*Object)(ptr).GetVals())
 }

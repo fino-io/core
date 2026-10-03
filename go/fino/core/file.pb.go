@@ -275,7 +275,7 @@ func file_fino_core_file_proto_rawDescGZIP() []byte {
 
 var file_fino_core_file_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_fino_core_file_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_fino_core_file_proto_goTypes = []interface{}{
+var file_fino_core_file_proto_goTypes = []any{
 	(File_Mode)(0),    // 0: fino.core.File.Mode
 	(*File)(nil),      // 1: fino.core.File
 	(*File_Info)(nil), // 2: fino.core.File.Info
@@ -301,7 +301,7 @@ func file_fino_core_file_proto_init() {
 	}
 	file_fino_core_time_proto_init()
 	if !protoimpl.UnsafeEnabled {
-		file_fino_core_file_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_file_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*File); i {
 			case 0:
 				return &v.state
@@ -313,7 +313,7 @@ func file_fino_core_file_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_file_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_file_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*File_Info); i {
 			case 0:
 				return &v.state

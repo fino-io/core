@@ -14,36 +14,28 @@ func NewError(code *ErrorCode, message string) *Error {
 }
 
 func NewErrorf(code *ErrorCode, format string, arguments ...any) *Error {
-	return &Error{
-		Code:    code,
-		Message: fmt.Sprintf(format, arguments...),
-	}
+	return NewError(code, fmt.Sprintf(format, arguments...))
 }
 
 func NewErrorFrom(code int32, message string) *Error {
-	err := &Error{Message: message}
-	if ec, ok := errorCodeIndex[code]; ok {
-		err.Code = ec
-	} else {
-		err.Code = &ErrorCode{Code: code}
-	}
-	return err
+	return NewError(NewErrorCode(code), message)
 }
 
 func NewFormattedErrorFrom(code int32, format string, arguments ...any) *Error {
 	return NewErrorFrom(code, fmt.Sprintf(format, arguments...))
 }
 
-func (e *Error) Is(err error) bool {
-	return IsError(err)
+func (e *Error) Is(target error) bool {
+	_, ok := target.(*Error)
+	return ok
 }
 
 func IsError(err error) bool {
-	return errors.Is(err, &Error{})
+	return AsError(err) != nil
 }
 
 func AsError(err error) *Error {
-	e := &Error{}
+	var e *Error
 	if errors.As(err, &e) {
 		return e
 	}

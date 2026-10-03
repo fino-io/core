@@ -2,12 +2,10 @@ package core
 
 import (
 	"errors"
+	"net"
 	"net/url"
-	"regexp"
 	"strings"
 )
-
-var urlSchemaPattern = regexp.MustCompile(`^([a-z0-9+\-.]+://)|mailto:|news:`)
 
 func ParseUrl(rawUrl string) (*Url, error) {
 	u := &Url{}
@@ -27,41 +25,23 @@ func (x *Url) Parse(rawUrl string) error {
 		return err
 	}
 
-	x.Scheme = u.Scheme
-	x.Authority = &Url_Authority{
-		UserInfo: u.User.String(),
-		Host:     u.Hostname(),
-		Port:     u.Port(),
-	}
-
-	if x.Authority.Host == "" && (u.Scheme == "" || u.Opaque == "") && urlSchemaPattern.MatchString(rawUrl) {
-		u, err := url.Parse("https://" + rawUrl)
-		if err != nil {
-			return err
-		}
-		x.Scheme = ""
-		x.Authority.Host = u.Hostname()
-		if x.Authority.Host == "" {
-			return errors.New("failed to parse url")
-		}
-	}
-
-	x.Path = u.Path
-	x.Fragment = u.Fragment
-
-	x.Query = &Url_Query{
-		Vals: make(map[string]*StringValues),
+	if u.Opaque != "" {
+		return errors.New("opaque URL is not supported by the Url contract")
 	}
 
 	query, err := url.ParseQuery(u.RawQuery)
 	if err != nil {
 		return err
 	}
-	for k, v := range query {
-		x.Query.Vals[k] = &StringValues{
-			Vals: v,
-		}
+	x.Scheme = u.Scheme
+	x.Authority = &Url_Authority{
+		UserInfo: u.User.String(),
+		Host:     u.Hostname(),
+		Port:     u.Port(),
 	}
+	x.Path = u.Path
+	x.Fragment = u.Fragment
+	x.Query = NewUrlQueryFrom(query)
 
 	return nil
 }
@@ -76,16 +56,17 @@ func (x *Url) Format() string {
 	if x.Authority != nil {
 		host = x.Authority.Host
 		if x.Authority.Port != "" {
-			host += ":" + x.Authority.Port
+			host = net.JoinHostPort(host, x.Authority.Port)
+		} else if strings.Contains(host, ":") {
+			host = "[" + host + "]"
 		}
 
 		if x.Authority.UserInfo != "" {
-			userinfo := x.Authority.UserInfo
-			segments := strings.Split(userinfo, ":")
-			if len(segments) == 1 {
-				user = url.User(segments[0])
+			userinfo, err := url.Parse("//" + x.Authority.UserInfo + "@localhost")
+			if err == nil {
+				user = userinfo.User
 			} else {
-				user = url.UserPassword(segments[0], segments[1])
+				user = url.User(x.Authority.UserInfo)
 			}
 		}
 	}
@@ -125,18 +106,11 @@ func (x *Url) FormatWithoutSchema() string {
 	}
 
 	u := &Url{
-		Path:     x.Path,
-		Query:    x.Query,
-		Fragment: x.Fragment,
+		Authority: x.Authority,
+		Path:      x.Path,
+		Query:     x.Query,
+		Fragment:  x.Fragment,
 	}
 
-	if x.Authority != nil {
-		u.Authority = &Url_Authority{
-			UserInfo: x.GetAuthority().GetUserInfo(),
-			Host:     x.GetAuthority().GetHost(),
-			Port:     x.GetAuthority().GetPort(),
-		}
-	}
-
-	return strings.TrimPrefix(u.Format(), "//")
+	return u.Format()
 }

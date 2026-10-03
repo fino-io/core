@@ -104,7 +104,7 @@ func file_fino_core_duration_proto_rawDescGZIP() []byte {
 }
 
 var file_fino_core_duration_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_fino_core_duration_proto_goTypes = []interface{}{
+var file_fino_core_duration_proto_goTypes = []any{
 	(*Duration)(nil), // 0: fino.core.Duration
 }
 var file_fino_core_duration_proto_depIdxs = []int32{
@@ -121,7 +121,7 @@ func file_fino_core_duration_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_fino_core_duration_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_duration_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Duration); i {
 			case 0:
 				return &v.state

@@ -1,24 +1,26 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"reflect"
-	"regexp"
-	"strconv"
+	"slices"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 )
 
+// NewUrlQuery ignores non-string keys and an incomplete trailing pair.
 func NewUrlQuery(kvs ...any) *Url_Query {
 	query := &Url_Query{
 		Vals: make(map[string]*StringValues),
 	}
 
 	for i := 0; i < len(kvs)-1; i += 2 {
-		key := kvs[i].(string)
-		query.Add(key, kvs[i+1])
+		if key, ok := kvs[i].(string); ok {
+			query.Add(key, kvs[i+1])
+		}
 	}
 	return query
 }
@@ -37,7 +39,7 @@ func (x *Url_Query) FromUrlValues(values url.Values) *Url_Query {
 		}
 
 		for k, v := range values {
-			x.Vals[k] = &StringValues{Vals: v}
+			x.Vals[k] = &StringValues{Vals: slices.Clone(v)}
 		}
 	}
 	return x
@@ -54,6 +56,9 @@ func (x *Url_Query) Has(k string) bool {
 func (x *Url_Query) Add(k string, v any) *Url_Query {
 	k = strings.TrimSpace(k)
 	if x != nil && k != "" {
+		if x.Vals == nil {
+			x.Vals = make(map[string]*StringValues)
+		}
 		if x.Vals[k] == nil {
 			x.Vals[k] = &StringValues{}
 		}
@@ -65,6 +70,9 @@ func (x *Url_Query) Add(k string, v any) *Url_Query {
 func (x *Url_Query) Set(k string, v any) *Url_Query {
 	k = strings.TrimSpace(k)
 	if x != nil && k != "" {
+		if x.Vals == nil {
+			x.Vals = make(map[string]*StringValues)
+		}
 		x.Vals[k] = &StringValues{
 			Vals: queryValueFormat(v),
 		}
@@ -82,47 +90,14 @@ func (x *Url_Query) Del(k string) *Url_Query {
 
 func queryValueFormat(val any) []string {
 	switch v := val.(type) {
-	case bool:
-		return []string{strconv.FormatBool(v)}
-	case int8:
-		return []string{strconv.FormatInt(int64(v), 10)}
-	case int16:
-		return []string{strconv.FormatInt(int64(v), 10)}
-	case int32:
-		return []string{strconv.FormatInt(int64(v), 10)}
-	case int64:
-		return []string{strconv.FormatInt(v, 10)}
-	case int:
-		return []string{strconv.FormatInt(int64(v), 10)}
-	case uint8:
-		return []string{strconv.FormatUint(uint64(v), 10)}
-	case uint16:
-		return []string{strconv.FormatUint(uint64(v), 10)}
-	case uint32:
-		return []string{strconv.FormatUint(uint64(v), 10)}
-	case uint64:
-		return []string{strconv.FormatUint(v, 10)}
-	case uint:
-		return []string{strconv.FormatUint(uint64(v), 10)}
-	case float32:
-		return []string{strconv.FormatFloat(float64(v), 'g', -1, 32)}
-	case float64:
-		return []string{strconv.FormatFloat(v, 'g', -1, 64)}
-	case string:
-		return []string{v}
 	case []string:
-		return v
+		return slices.Clone(v)
+	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64,
+		float32, float64, string, ToStringConverter, Formatter:
+		return []string{ToString(val)}
+	default:
+		return []string{}
 	}
-
-	if c, ok := val.(ToStringConverter); ok {
-		return []string{c.ToString()}
-	}
-
-	if f, ok := val.(Formatter); ok {
-		return []string{f.Format()}
-	}
-
-	return []string{}
 }
 
 // Unmarshal
@@ -140,84 +115,59 @@ func queryValueFormat(val any) []string {
 // object
 //
 //	foo={"key1":"bar","key2","baz"}
-func (x *Url_Query) Unmarshal(name string, value interface{}) error {
-	if x == nil || x.Vals == nil {
+func (x *Url_Query) Unmarshal(name string, value any) error {
+	param := x.GetVals()[name]
+	if len(param.GetVals()) == 0 {
 		return nil
 	}
 
-	param, ok := x.Vals[name]
-	if !ok || param == nil || len(param.Vals) == 0 {
-		return nil
+	v, err := paramDestination(value)
+	if err != nil {
+		return err
 	}
-
-	v := reflect.Indirect(reflect.ValueOf(value))
-	switch v.Kind() {
-	case reflect.Slice, reflect.Array:
-		elem := v.Type().Elem()
-		isStringType := elem.Kind() == reflect.String
-		if elem.Kind() == reflect.Ptr {
-			if _, ok := reflect.New(elem.Elem()).Interface().(StringLike); ok {
-				isStringType = true
-			}
-		}
-
-		var sliceValue string
-		if len(param.Vals) == 1 {
-			sliceValue = param.Vals[0]
-		} else {
-			if isStringType {
-				for i := 0; i < len(param.Vals); i++ {
-					param.Vals[i] = QuoteString(param.Vals[i])
-				}
-			}
-			sliceValue = "[" + strings.Join(param.Vals, ",") + "]"
-		}
-		return UnmarshalParam(sliceValue, value)
-	default:
-		if len(param.Vals) > 0 {
-			return UnmarshalParam(param.Vals[0], value)
-		}
+	if (v.Kind() != reflect.Slice && v.Kind() != reflect.Array) || len(param.Vals) == 1 {
+		return UnmarshalParam(param.Vals[0], value)
 	}
-	return nil
+	if isStringParamType(v.Type().Elem()) {
+		data, err := json.Marshal(param.Vals)
+		if err != nil {
+			return err
+		}
+		return UnmarshalParam(string(data), value)
+	}
+	return UnmarshalParam("["+strings.Join(param.Vals, ",")+"]", value)
 }
 
-func UnmarshalParam(str string, value interface{}) error {
+func UnmarshalParam(str string, value any) error {
+	v, err := paramDestination(value)
+	if err != nil {
+		return err
+	}
 	if len(str) == 0 {
 		return nil
 	}
 
-	v := reflect.Indirect(reflect.ValueOf(value))
 	switch v.Kind() {
 	case reflect.String:
 		v.SetString(str)
 	case reflect.Slice, reflect.Array:
-		elem := v.Type().Elem()
-		isStringType := elem.Kind() == reflect.String
-		if elem.Kind() == reflect.Ptr {
-			if _, ok := reflect.New(elem.Elem()).Interface().(StringLike); ok {
-				isStringType = true
-			}
-		}
-
 		str = strings.TrimSpace(str)
-		if len(str) > 0 {
-			if str[0] != '[' {
-				if isStringType {
-					vals := splitQuotedString(str)
-					for i := 0; i < len(vals); i++ {
-						vals[i] = strings.TrimSpace(vals[i])
-						vals[i] = QuoteString(vals[i])
-					}
-					str = "[" + strings.Join(vals, ",") + "]"
-				} else {
-					str = "[" + str + "]"
-				}
-			}
-			return jsoniter.Unmarshal([]byte(str), value)
+		if str == "" {
+			return nil
 		}
-		return nil
+		if str[0] != '[' {
+			if isStringParamType(v.Type().Elem()) {
+				vals := splitQuotedString(str)
+				for i, val := range vals {
+					vals[i] = QuoteString(strings.TrimSpace(val))
+				}
+				str = strings.Join(vals, ",")
+			}
+			str = "[" + str + "]"
+		}
+		return jsoniter.Unmarshal([]byte(str), value)
 	default:
-		if _, ok := reflect.New(v.Type()).Interface().(StringLike); ok {
+		if reflect.PointerTo(v.Type()).Implements(reflect.TypeFor[StringLike]()) {
 			str = QuoteString(str)
 		}
 
@@ -230,36 +180,29 @@ func UnmarshalParam(str string, value interface{}) error {
 	return nil
 }
 
-var separator = regexp.MustCompile(`" *, *"`)
-
-func splitQuotedString(str string) []string {
-	if !IsQuotedString(str, `"`) {
-		return strings.Split(str, ",")
+func paramDestination(value any) (reflect.Value, error) {
+	v := reflect.ValueOf(value)
+	if !v.IsValid() || v.Kind() != reflect.Ptr || v.IsNil() {
+		return reflect.Value{}, fmt.Errorf("expected a non-nil pointer, got %T", value)
 	}
-
-	vals := separator.Split(str, -1)
-	if len(vals) > 1 {
-		vals[0] = vals[0] + `"`
-		vals[len(vals)-1] = `"` + vals[len(vals)-1]
-
-		for i := 1; i < len(vals)-1; i++ {
-			vals[i] = QuoteString(vals[i])
-		}
-	}
-	return vals
+	return v.Elem(), nil
 }
 
-func isStringSlice(v any) bool {
-	t := reflect.TypeOf(v)
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-
-	if t.Kind() == reflect.Slice {
-		t = t.Elem()
-		if t.Kind() == reflect.String {
-			return true
+func splitQuotedString(str string) []string {
+	if IsQuotedString(str, `"`) {
+		var raw []json.RawMessage
+		if json.Unmarshal([]byte("["+str+"]"), &raw) == nil {
+			vals := make([]string, len(raw))
+			for i, value := range raw {
+				vals[i] = string(value)
+			}
+			return vals
 		}
 	}
-	return false
+	return strings.Split(str, ",")
+}
+
+func isStringParamType(t reflect.Type) bool {
+	return t.Kind() == reflect.String ||
+		(t.Kind() == reflect.Ptr && reflect.PointerTo(t.Elem()).Implements(reflect.TypeFor[StringLike]()))
 }

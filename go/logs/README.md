@@ -88,6 +88,10 @@ logs:
 ```
 
 `output: console` 输出到控制台；需要文件输出时设为 `file`。`file` 中的配置控制日志路径和轮转。
+文件输出未指定 `file.encode` 时使用 JSON。
+
+字段按初始配置、`Logger.With`、上下文、单次调用的顺序覆盖；同名字段只输出一次。
+`Logger.With` 和 `Service.WithContext` 创建派生对象，不修改父级字段。
 
 ## 动态级别接口
 

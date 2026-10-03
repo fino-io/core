@@ -1,6 +1,9 @@
 package core
 
-import "regexp"
+import (
+	"regexp"
+	"slices"
+)
 
 func NewStringValues(vals ...string) *StringValues {
 	return &StringValues{Vals: vals}
@@ -21,18 +24,13 @@ func (x *StringValues) ToArray() any {
 }
 
 func (x *StringValues) Contains(element string) any {
-	for _, e := range x.Vals {
-		if e == element {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(x.GetVals(), element)
 }
 
 func (x *StringValues) Unique() *StringValues {
 	tmp := NewStringValues()
 	found := make(map[string]struct{})
-	for _, v := range x.Vals {
+	for _, v := range x.GetVals() {
 		if _, ok := found[v]; !ok {
 			tmp.Append(v)
 			found[v] = struct{}{}
@@ -42,27 +40,22 @@ func (x *StringValues) Unique() *StringValues {
 }
 
 func (x *StringValues) Matched(expr string) bool {
-	if expr == "" {
+	pattern, err := regexp.Compile(expr)
+	if expr == "" || err != nil {
 		return false
 	}
 
-	for _, val := range x.Vals {
-		if matched, err := regexp.MatchString(val, expr); matched && err == nil {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(x.GetVals(), pattern.MatchString)
 }
 
 func (x *StringValues) Matches(expr string) *StringValues {
-	if expr == "" {
-		return NewStringValues()
-	}
-
 	tmp := NewStringValues()
-	for _, val := range x.Vals {
-		if matched, err := regexp.MatchString(val, expr); matched && err == nil {
+	pattern, err := regexp.Compile(expr)
+	if expr == "" || err != nil {
+		return tmp
+	}
+	for _, val := range x.GetVals() {
+		if pattern.MatchString(val) {
 			tmp.Append(val)
 		}
 	}

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strconv"
 	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
@@ -23,23 +24,27 @@ func (codec *TimestampCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator)
 	a := iter.ReadAny()
 	ts := (*Timestamp)(ptr)
 	if a.ValueType() == jsoniter.NumberValue {
-		number := a.ToInt64()
-
-		if number < int64(MaxInt) {
-			ts.Seconds = number
-		} else {
-			ts.Seconds = number / 1000
-			ts.Nanoseconds = int64ToInt32((number - ts.Seconds*1000) * 1000000)
+		// Numeric timestamps are Unix seconds, independent of platform int size.
+		number, err := strconv.ParseInt(a.ToString(), 10, 64)
+		if err != nil {
+			iter.ReportError("Decode Timestamp", err.Error())
+			return
 		}
+		ts.Seconds, ts.Nanoseconds = number, 0
 	} else if a.ValueType() == jsoniter.StringValue {
 		if err := ts.Parse(a.ToString()); err != nil {
 			iter.ReportError("Decode Timestamp", err.Error())
 		}
+	} else if a.ValueType() == jsoniter.NilValue {
+		ts.Seconds, ts.Nanoseconds = 0, 0
+	} else {
+		iter.ReportError("Decode Timestamp", "expected Unix seconds or timestamp string")
 	}
 }
 
 func (codec *TimestampCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	return ((*Timestamp)(ptr)).Seconds == 0
+	ts := (*Timestamp)(ptr)
+	return ts == nil || (ts.Seconds == 0 && ts.Nanoseconds == 0)
 }
 
 func (codec *TimestampCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {

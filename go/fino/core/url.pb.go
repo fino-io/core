@@ -260,7 +260,7 @@ func file_fino_core_url_proto_rawDescGZIP() []byte {
 }
 
 var file_fino_core_url_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_fino_core_url_proto_goTypes = []interface{}{
+var file_fino_core_url_proto_goTypes = []any{
 	(*Url)(nil),           // 0: fino.core.Url
 	(*Url_Authority)(nil), // 1: fino.core.Url.Authority
 	(*Url_Query)(nil),     // 2: fino.core.Url.Query
@@ -286,7 +286,7 @@ func file_fino_core_url_proto_init() {
 	}
 	file_fino_core_boxed_proto_init()
 	if !protoimpl.UnsafeEnabled {
-		file_fino_core_url_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_url_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Url); i {
 			case 0:
 				return &v.state
@@ -298,7 +298,7 @@ func file_fino_core_url_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_url_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_url_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*Url_Authority); i {
 			case 0:
 				return &v.state
@@ -310,7 +310,7 @@ func file_fino_core_url_proto_init() {
 				return nil
 			}
 		}
-		file_fino_core_url_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_fino_core_url_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*Url_Query); i {
 			case 0:
 				return &v.state

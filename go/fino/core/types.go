@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/hex"
+	"reflect"
 	"strconv"
 )
 
@@ -10,37 +11,43 @@ type StringLike interface {
 }
 
 type ScalarLike interface {
-	ToScalar() interface{}
+	ToScalar() any
 }
 
 type ArrayLike interface {
-	ToArray() interface{}
+	ToArray() any
 }
 
 type MapLike interface {
-	ToMap() interface{}
+	ToMap() any
 }
 
-func ToString(value interface{}) string {
+func ToString(value any) string {
 	switch v := value.(type) {
 	case bool:
 		return strconv.FormatBool(v)
-	case int8, int16, int32, int64, int:
-		return strconv.FormatInt(value.(int64), 10)
-	case uint8, uint16, uint32, uint64, uint:
-		return strconv.FormatUint(value.(uint64), 10)
-	case float32, float64:
-		return strconv.FormatFloat(value.(float64), 'e', 8, 10)
 	case []byte:
 		return hex.EncodeToString(v)
 	case string:
 		return v
-	default:
-		if s, ok := value.(StringLike); ok {
-			return s.ToString()
-		} else if f, ok := value.(Formatter); ok {
-			return f.Format()
-		}
+	case StringLike:
+		return v.ToString()
+	case Formatter:
+		return v.Format()
+	}
+
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(v.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits())
+	case reflect.Bool:
+		return strconv.FormatBool(v.Bool())
+	case reflect.String:
+		return v.String()
 	}
 	return ""
 }

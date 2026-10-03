@@ -2,13 +2,13 @@ package core
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/fino-io/core/go/fino/core/strcase"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/modern-go/reflect2"
+	"google.golang.org/protobuf/proto"
 )
 
 const ObjectTypeName = "Object"
@@ -18,7 +18,7 @@ func NewObject() *Object {
 	return &Object{Vals: make(map[string]*Value)}
 }
 
-// NewObjectFromMap constructs a Struct from a general-purpose Go map.
+// NewObjectFromMap constructs an Object from a general-purpose Go map.
 // The map keys must be valid UTF-8.
 // The map values are converted using NewValue.
 func NewObjectFromMap(m map[string]any) (*Object, error) {
@@ -41,7 +41,7 @@ func NewObjectFromKeyVals(kvs ...any) (*Object, error) {
 		return nil, fmt.Errorf("invalid number of key/value pairs: %d", len(kvs))
 	}
 
-	m := make(map[string]any)
+	m := make(map[string]any, len(kvs)/2)
 	for i := 0; i < len(kvs); i += 2 {
 		k, ok := kvs[i].(string)
 		if !ok {
@@ -81,11 +81,7 @@ func (x *Object) AsMap() map[string]any {
 	f := x.GetVals()
 	vs := make(map[string]any, len(f))
 	for k, v := range f {
-		if v != nil {
-			vs[k] = v.AsInterface()
-		} else {
-			vs[k] = nil
-		}
+		vs[k] = v.AsInterface()
 	}
 
 	return vs
@@ -95,8 +91,9 @@ func (x *Object) To(val any) error {
 	if x == nil {
 		return nil
 	}
-	if val == nil {
-		return fmt.Errorf("Object.To: nil value")
+	rv := reflect.ValueOf(val)
+	if !rv.IsValid() || rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return fmt.Errorf("Object.To: expected a non-nil pointer, got %T", val)
 	}
 
 	marshal, err := jsoniter.ConfigFastest.Marshal(x)
@@ -104,146 +101,39 @@ func (x *Object) To(val any) error {
 		return err
 	}
 
-	return jsoniter.ConfigFastest.Unmarshal(marshal, &val)
+	return jsoniter.ConfigFastest.Unmarshal(marshal, val)
 }
 
-// From converts a struct into Object.
-// Custom encoders override default JSON behavior when registered.
+// From replaces the object with the input's JSON representation, preserving
+// JSON field names, omitempty, and registered codecs. JSON null clears the object;
+// other non-object representations return an error without changing the receiver.
+// Use Merge to combine objects and Clone to preserve Protobuf types and metadata.
 func (x *Object) From(val any) error {
 	if x == nil {
 		return nil
 	}
 
-	rv := reflect.ValueOf(val)
-	if !rv.IsValid() {
-		return nil
-	}
-
-	if x.Vals == nil {
-		x.Vals = make(map[string]*Value)
-	}
-
-	switch v := val.(type) {
-	case nil, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, string, []byte:
-		return fmt.Errorf("invalid basic object format: %T", v)
-	case []any, *Values:
-		return fmt.Errorf("invalid array object format: %T", v)
-	case *Value:
-		if obj := v.GetObject(); obj != nil {
-			x.Vals = obj.Clone().Vals
-		} else {
-			return fmt.Errorf("invalid value object format: %T", v)
-		}
-	case *Object:
-		x.Vals = v.Clone().Vals
-	case map[string]*Value:
-		x.Vals = make(map[string]*Value, len(v))
-		for _k, _v := range v {
-			x.Vals[_k] = _v
-		}
-	default:
-		if rv.Kind() == reflect.Ptr {
-			if rv.IsNil() {
-				return nil
-			}
-			rv = rv.Elem()
-		}
-		typ := rv.Type()
-		if typ.Kind() != reflect.Struct {
-			return fmt.Errorf("invalid default object format: %T", v)
-		}
-
-		if _, ok := registerJSONEncoderTypes[typ.String()]; ok {
-			if marshal, err := jsoniter.ConfigFastest.Marshal(v); err != nil {
-				return err
-			} else if err = jsoniter.ConfigFastest.Unmarshal(marshal, &x.Vals); err != nil {
-				return err
-			}
-		} else {
-			for i := 0; i < typ.NumField(); i++ {
-				key, ok := jsonFieldName(typ.Field(i))
-				if !ok {
-					continue
-				}
-				// key := typ.Field(i).Name
-				// if key[0] >= 'a' && key[0] <= 'z' {
-				// 	continue
-				// }
-				if rv.Field(i).IsZero() {
-					continue
-				}
-
-				_val := &Value{}
-				if encoder, ok := registerJSONEncoderTypeFields[typ.String()+"."+key]; ok {
-					_typ := reflect2.TypeOf(rv)
-					if _typ.Kind() == reflect.Ptr {
-						_typ = _typ.(*reflect2.UnsafePtrType).Elem()
-					}
-					if obj, ok := _typ.(*reflect2.UnsafeStructType); ok {
-						feild := obj.FieldByName(key)
-						f := feild.UnsafeGet(reflect2.PtrOf(val))
-
-						buf := &strings.Builder{}
-						stream := jsoniter.NewStream(jsoniter.ConfigFastest, buf, 1024)
-						encoder.Encode(f, stream)
-						_ = stream.Flush()
-						if err := jsoniter.ConfigFastest.Unmarshal(stream.Buffer(), &_val); err != nil {
-							return err
-						}
-					}
-				} else {
-					var err error
-					if _val, err = NewValue(rv.Field(i).Interface()); err != nil {
-						return err
-					}
-				}
-
-				x.Vals[strcase.ToLowerCamel(key)] = _val
-			}
-		}
-	}
-	return nil
-}
-
-func jsonFieldName(field reflect.StructField) (string, bool) {
-	// 非导出字段
-	if field.PkgPath != "" {
-		return "", false
-	}
-
-	tag := field.Tag.Get("json")
-	if tag == "-" {
-		return "", false
-	}
-
-	// 默认字段名
-	name := field.Name
-
-	if tag != "" {
-		n := strings.Split(tag, ",")[0]
-		if n != "" {
-			name = n
-		}
-	}
-
-	return name, true
-}
-
-func (x *Object) From2(val any) error {
-	if x == nil || val == nil {
-		return nil
-	}
-
-	marshal, err := jsoniter.ConfigFastest.Marshal(val)
+	data, err := jsoniter.ConfigFastest.Marshal(val)
 	if err != nil {
 		return err
 	}
 
-	return jsoniter.ConfigFastest.Unmarshal(marshal, &x.Vals)
+	var object Object
+	if err := jsoniter.ConfigFastest.Unmarshal(data, &object); err != nil {
+		return err
+	}
+	x.Vals = object.Vals
+	return nil
+}
+
+// From2 is a compatibility alias for From.
+// Deprecated: use From instead.
+func (x *Object) From2(val any) error {
+	return x.From(val)
 }
 
 func (x *Object) IsEmpty() bool {
-	return x == nil || len(x.GetVals()) == 0
+	return len(x.GetVals()) == 0
 }
 
 func (x *Object) init() {
@@ -261,120 +151,95 @@ func (x *Object) SetValue(key string, val *Value) *Object {
 }
 
 func (x *Object) SetBool(key string, val bool) *Object {
-	x.SetValue(key, NewBoolValue(val))
-	return x
+	return x.SetValue(key, NewBoolValue(val))
 }
 
 func (x *Object) SetBytes(key string, val []byte) *Object {
-	x.SetValue(key, NewBytesValue(val))
-	return x
+	return x.SetValue(key, NewBytesValue(val))
 }
 
 func (x *Object) SetInt(key string, val int) *Object {
-	x.SetValue(key, NewIntValue(val))
-	return x
+	return x.SetValue(key, NewIntValue(val))
 }
 
 func (x *Object) SetInt32(key string, val int32) *Object {
-	x.SetValue(key, NewInt32Value(val))
-	return x
+	return x.SetValue(key, NewInt32Value(val))
 }
 
 func (x *Object) SetInt64(key string, val int64) *Object {
-	x.SetValue(key, NewInt64Value(val))
-	return x
+	return x.SetValue(key, NewInt64Value(val))
 }
 
 func (x *Object) SetUint(key string, val uint) *Object {
-	x.SetValue(key, NewUintValue(val))
-	return x
+	return x.SetValue(key, NewUintValue(val))
 }
 
 func (x *Object) SetUint32(key string, val uint32) *Object {
-	x.SetValue(key, NewUint32Value(val))
-	return x
+	return x.SetValue(key, NewUint32Value(val))
 }
 
 func (x *Object) SetUint64(key string, val uint64) *Object {
-	x.SetValue(key, NewUint64Value(val))
-	return x
+	return x.SetValue(key, NewUint64Value(val))
 }
 
 func (x *Object) SetFloat32(key string, val float32) *Object {
-	x.SetValue(key, NewFloat32Value(val))
-	return x
+	return x.SetValue(key, NewFloat32Value(val))
 }
 
 func (x *Object) SetFloat64(key string, val float64) *Object {
-	x.SetValue(key, NewFloat64Value(val))
-	return x
+	return x.SetValue(key, NewFloat64Value(val))
 }
 
 func (x *Object) SetString(key string, val string) *Object {
-	x.SetValue(key, NewStringValue(val))
-	return x
+	return x.SetValue(key, NewStringValue(val))
 }
 
 func (x *Object) SetObject(key string, val *Object) *Object {
-	x.SetValue(key, NewObjectValue(val))
-	return x
+	return x.SetValue(key, NewObjectValue(val))
 }
 
 func (x *Object) SetIntArray(key string, vals ...int) *Object {
-	x.SetValue(key, NewIntArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewIntArrayValue(vals...))
 }
 
 func (x *Object) SetInt32Array(key string, vals ...int32) *Object {
-	x.SetValue(key, NewInt32ArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewInt32ArrayValue(vals...))
 }
 
 func (x *Object) SetInt64Array(key string, vals ...int64) *Object {
-	x.SetValue(key, NewInt64ArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewInt64ArrayValue(vals...))
 }
 
 func (x *Object) SetUintArray(key string, vals ...uint) *Object {
-	x.SetValue(key, NewUintArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewUintArrayValue(vals...))
 }
 
 func (x *Object) SetUint32Array(key string, vals ...uint32) *Object {
-	x.SetValue(key, NewUint32ArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewUint32ArrayValue(vals...))
 }
 
 func (x *Object) SetUint64Array(key string, vals ...uint64) *Object {
-	x.SetValue(key, NewUint64ArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewUint64ArrayValue(vals...))
 }
 
 func (x *Object) SetFloat32Array(key string, vals ...float32) *Object {
-	x.SetValue(key, NewFloat32ArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewFloat32ArrayValue(vals...))
 }
 
 func (x *Object) SetFloat64Array(key string, vals ...float64) *Object {
-	x.SetValue(key, NewFloat64ArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewFloat64ArrayValue(vals...))
 }
 
 func (x *Object) SetStringArray(key string, vals ...string) *Object {
-	x.SetValue(key, NewStringArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewStringArrayValue(vals...))
 }
 
 func (x *Object) SetObjectArray(key string, vals ...*Object) *Object {
-	x.SetValue(key, NewObjectArrayValue(vals...))
-	return x
+	return x.SetValue(key, NewObjectArrayValue(vals...))
 }
 
 func (x *Object) GetValue(key string) *Value {
-	if x != nil && x.Vals != nil {
-		return x.Vals[key]
-	}
-	return nil
+	return x.GetVals()[key]
 }
 
 func (x *Object) GetBool(key string) bool {
@@ -457,30 +322,25 @@ func (x *Object) GetValueArray(key string) []*Value {
 	return x.GetValue(key).GetValueArray()
 }
 
+// Merge copies entries from o. Nested values remain shared; use Clone to isolate them.
 func (x *Object) Merge(o *Object) *Object {
-	if x != nil {
-		for k, v := range o.Vals {
-			x.Vals[k] = v
-		}
+	if x != nil && o != nil {
+		x.init()
+		maps.Copy(x.Vals, o.Vals)
 	}
 	return x
 }
 
+// Clone returns a deep copy, including nested objects, arrays, and byte slices.
 func (x *Object) Clone() *Object {
 	if x != nil {
-		obj := NewObject()
-		for k, v := range x.Vals {
-			obj.SetValue(k, v)
-		}
-		return obj
+		return proto.Clone(x).(*Object)
 	}
 	return x
 }
 
 func (x *Object) Delete(key string) *Object {
-	if x != nil && x.Vals != nil {
-		delete(x.Vals, key)
-	}
+	delete(x.GetVals(), key)
 	return x
 }
 

@@ -14,19 +14,22 @@ func init() {
 type ValuesCodec struct{}
 
 func (codec *ValuesCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-	a := iter.ReadAny()
-	values := (*Values)(ptr)
-	if a.ValueType() == jsoniter.ArrayValue {
-		a.ToVal(&values.Vals)
+	next := iter.WhatIsNext()
+	if next != jsoniter.ArrayValue && next != jsoniter.NilValue {
+		iter.ReportError("ValuesCodec.Decode", "expected JSON array")
+		return
+	}
+	var values []*Value
+	iter.ReadVal(&values)
+	if iter.Error == nil {
+		(*Values)(ptr).Vals = values
 	}
 }
 
 func (codec *ValuesCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	values := (*Values)(ptr)
-	return values == nil || len(values.Vals) == 0
+	return len((*Values)(ptr).GetVals()) == 0
 }
 
 func (codec *ValuesCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
-	values := (*Values)(ptr)
-	stream.WriteVal(&values.Vals)
+	stream.WriteVal((*Values)(ptr).GetVals())
 }

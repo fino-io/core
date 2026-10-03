@@ -14,25 +14,11 @@ import (
 const ValueTypeName = "Value"
 const ValueTypeFullName = "core.Value"
 
-// NewValue constructs a Value from a general-purpose Go interface.
-//
-//	╔═══════════════════════════════════════╤════════════════════════════════════════════╗
-//	║ Go type                               │ Conversion                                 ║
-//	╠═══════════════════════════════════════╪════════════════════════════════════════════╣
-//	║ nil                                   │ stored as NullValue                        ║
-//	║ bool                                  │ stored as BoolValue                        ║
-//	║ int, int8, int16, int32, int64        │ stored as NegativeVal/PositiveVal          ║
-//	║ uint, uint8, uint16, uint32, uint64   │ stored as NegativeVal/PositiveVal          ║
-//	║ float32, float64                      │ stored as NumberValue                      ║
-//	║ json.Number                           │ stored as NumberValue                      ║
-//	║ string                                │ stored as StringValue; must be valid UTF-8 ║
-//	║ []byte                                │ stored as StringValue; base64-encoded      ║
-//	║ map[string]any                        │ stored as ObjectValue                      ║
-//	║ []any                                 │ stored as ValuesValue                      ║
-//	╚═══════════════════════════════════════╧════════════════════════════════════════════╝
-//
-// When converting an int64 or uint64 to a NumberValue, numeric precision loss
-// is possible since they are stored as a float64.
+// NewValue converts Go scalars, maps, slices, arrays, and structs into Value.
+// Integers retain int64/uint64 precision; decimal JSON numbers use float64.
+// Structs and typed collections use jsoniter's registered codecs and JSON tags.
+// Nil pointers become null. For compatibility, []byte becomes a base64 string;
+// use NewBytesValue to retain the binary kind and its b64. JSON representation.
 func NewValue(val any) (*Value, error) {
 	switch v := val.(type) {
 	case nil:
@@ -64,11 +50,25 @@ func NewValue(val any) (*Value, error) {
 	case float64:
 		return NewFloat64Value(v), nil
 	case json.Number:
-		n, err := v.Float64()
-		if err != nil {
-			return nil, fmt.Errorf("invalid number format %q, expected a float64: %v", v, err)
+		if !json.Valid([]byte(v)) {
+			return nil, fmt.Errorf("invalid JSON number: %q", v)
 		}
-		return NewNumberValue(n), nil
+		return parseNumberValue(string(v))
+	case *Value:
+		if v == nil {
+			return NewNullValue(), nil
+		}
+		return v, nil
+	case *Object:
+		if v == nil {
+			return NewNullValue(), nil
+		}
+		return NewObjectValue(v), nil
+	case *Values:
+		if v == nil {
+			return NewNullValue(), nil
+		}
+		return NewValuesValue(v), nil
 	case string:
 		if !utf8.ValidString(v) {
 			return nil, fmt.Errorf("invalid UTF-8 in string: %q", v)
@@ -77,7 +77,6 @@ func NewValue(val any) (*Value, error) {
 	case []byte:
 		s := base64.StdEncoding.EncodeToString(v)
 		return NewStringValue(s), nil
-		// return NewBytesValue(v), nil
 	case map[string]any:
 		v2, err := NewObjectFromMap(v)
 		if err != nil {
@@ -91,43 +90,38 @@ func NewValue(val any) (*Value, error) {
 		}
 		return NewValuesValue(v2), nil
 	default:
-		_val := reflect.ValueOf(val)
-		if _val.Kind() == reflect.Ptr {
-			_val = _val.Elem()
+		rv := reflect.ValueOf(val)
+		for rv.Kind() == reflect.Ptr {
+			if rv.IsNil() {
+				return NewNullValue(), nil
+			}
+			rv = rv.Elem()
 		}
-		typ := reflect.Indirect(_val).Type()
-
-		switch typ.Kind() {
-		case reflect.Struct:
-			m, err := structToMap(val)
+		switch rv.Kind() {
+		case reflect.Struct, reflect.Map, reflect.Slice, reflect.Array:
+			data, err := jsoniter.Marshal(val)
 			if err != nil {
 				return nil, err
 			}
-
-			obj, err := NewObjectFromMap(m)
-			if err != nil {
+			var value Value
+			if err := jsoniter.Unmarshal(data, &value); err != nil {
 				return nil, err
 			}
-			return NewObjectValue(obj), nil
-			// return nil, fmt.Errorf("struct type %T must be explicitly converted", val)
+			return &value, nil
+		case reflect.Bool:
+			return NewBoolValue(rv.Bool()), nil
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return NewInt64Value(rv.Int()), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return NewUint64Value(rv.Uint()), nil
+		case reflect.Float32, reflect.Float64:
+			return NewFloat64Value(rv.Float()), nil
+		case reflect.String:
+			return NewValue(rv.String())
 		default:
 			return nil, fmt.Errorf("invalid type: %T", v)
 		}
 	}
-}
-
-func structToMap(val any) (map[string]any, error) {
-	bytes, err := jsoniter.Marshal(val)
-	if err != nil {
-		return nil, err
-	}
-
-	var m map[string]any
-	if err := jsoniter.Unmarshal(bytes, &m); err != nil {
-		return nil, err
-	}
-
-	return m, nil
 }
 
 // NewNullValue constructs a new null Value.
@@ -322,7 +316,7 @@ func NewObjectArrayValue(vals ...*Object) *Value {
 
 // AsInterface converts x to a general-purpose Go interface.
 //
-// Calling Value.MarshalJSON and "encoding/json".Marshal on this output produce
+// jsoniter.Marshal(x) and encoding/json.Marshal(x.AsInterface()) produce
 // semantically equivalent JSON (assuming no errors occur).
 //
 // Floating-point values (i.e., "NaN", "Infinity", and "-Infinity") are
@@ -350,9 +344,17 @@ func (x *Value) AsInterface() any {
 		}
 	case *Value_StringValue:
 		return v.StringValue
+	case *Value_BytesValue:
+		return Base64Prefix + base64.StdEncoding.EncodeToString(v.BytesValue)
 	case *Value_ObjectValue:
+		if v.ObjectValue == nil {
+			return nil
+		}
 		return v.ObjectValue.AsMap()
 	case *Value_ValuesValue:
+		if v.ValuesValue == nil {
+			return nil
+		}
 		return v.ValuesValue.AsSlice()
 	default:
 		return v

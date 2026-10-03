@@ -1,10 +1,10 @@
 package logs
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -112,157 +112,157 @@ func (s *Service) log(level Level, msg string, fields ...Field) {
 	})
 }
 
-func (s *Service) Debug(args ...interface{}) {
+func (s *Service) Debug(args ...any) {
 	s.log(DebugLevel, fmt.Sprint(args...))
 }
 
-func (s *Service) Info(args ...interface{}) {
+func (s *Service) Info(args ...any) {
 	s.log(InfoLevel, fmt.Sprint(args...))
 }
 
-func (s *Service) Warn(args ...interface{}) {
+func (s *Service) Warn(args ...any) {
 	s.log(WarnLevel, fmt.Sprint(args...))
 }
 
-func (s *Service) Error(args ...interface{}) {
+func (s *Service) Error(args ...any) {
 	s.log(ErrorLevel, fmt.Sprint(args...))
 }
 
-func (s *Service) Fatal(args ...interface{}) {
+func (s *Service) Fatal(args ...any) {
 	s.log(FatalLevel, fmt.Sprint(args...))
 }
 
-func (s *Service) Debugf(template string, args ...interface{}) {
+func (s *Service) Debugf(template string, args ...any) {
 	s.log(DebugLevel, fmt.Sprintf(template, args...))
 }
 
-func (s *Service) Infof(template string, args ...interface{}) {
+func (s *Service) Infof(template string, args ...any) {
 	s.log(InfoLevel, fmt.Sprintf(template, args...))
 }
 
-func (s *Service) Warnf(template string, args ...interface{}) {
+func (s *Service) Warnf(template string, args ...any) {
 	s.log(WarnLevel, fmt.Sprintf(template, args...))
 }
 
-func (s *Service) Errorf(template string, args ...interface{}) {
+func (s *Service) Errorf(template string, args ...any) {
 	s.log(ErrorLevel, fmt.Sprintf(template, args...))
 }
 
-func (s *Service) Fatalf(template string, args ...interface{}) {
+func (s *Service) Fatalf(template string, args ...any) {
 	s.log(FatalLevel, fmt.Sprintf(template, args...))
 }
 
-func (s *Service) Debugw(msg string, keysAndValues ...interface{}) {
+func (s *Service) Debugw(msg string, keysAndValues ...any) {
 	s.log(DebugLevel, msg, keyValuesToFields(keysAndValues...)...)
 }
 
-func (s *Service) Infow(msg string, keysAndValues ...interface{}) {
+func (s *Service) Infow(msg string, keysAndValues ...any) {
 	s.log(InfoLevel, msg, keyValuesToFields(keysAndValues...)...)
 }
 
-func (s *Service) Warnw(msg string, keysAndValues ...interface{}) {
+func (s *Service) Warnw(msg string, keysAndValues ...any) {
 	s.log(WarnLevel, msg, keyValuesToFields(keysAndValues...)...)
 }
 
-func (s *Service) Errorw(msg string, keysAndValues ...interface{}) {
+func (s *Service) Errorw(msg string, keysAndValues ...any) {
 	s.log(ErrorLevel, msg, keyValuesToFields(keysAndValues...)...)
 }
 
-func (s *Service) Fatalw(msg string, keysAndValues ...interface{}) {
+func (s *Service) Fatalw(msg string, keysAndValues ...any) {
 	s.log(FatalLevel, msg, keyValuesToFields(keysAndValues...)...)
 }
 
-func (s *Service) NewError(args ...interface{}) error {
+func (s *Service) NewError(args ...any) error {
 	msg := fmt.Sprint(args...)
 	s.log(ErrorLevel, msg)
 	return errors.New(msg)
 }
 
-func (s *Service) NewErrorf(template string, args ...interface{}) error {
-	msg := fmt.Sprintf(template, args...)
-	s.log(ErrorLevel, msg)
-	return fmt.Errorf(template, args...)
+func (s *Service) NewErrorf(template string, args ...any) error {
+	err := fmt.Errorf(template, args...)
+	s.log(ErrorLevel, err.Error())
+	return err
 }
 
-func (s *Service) NewErrorw(msg string, keysAndValues ...interface{}) error {
+func (s *Service) NewErrorw(msg string, keysAndValues ...any) error {
 	fields := keyValuesToFields(keysAndValues...)
 	s.log(ErrorLevel, msg, fields...)
 	return errors.New(renderErrorMessage(msg, fields))
 }
 
-func Debug(args ...interface{}) {
+func Debug(args ...any) {
 	currentDefaultService().Debug(args...)
 }
 
-func Info(args ...interface{}) {
+func Info(args ...any) {
 	currentDefaultService().Info(args...)
 }
 
-func Warn(args ...interface{}) {
+func Warn(args ...any) {
 	currentDefaultService().Warn(args...)
 }
 
-func Error(args ...interface{}) {
+func Error(args ...any) {
 	currentDefaultService().Error(args...)
 }
 
-func Fatal(args ...interface{}) {
+func Fatal(args ...any) {
 	currentDefaultService().Fatal(args...)
 }
 
-func Debugf(template string, args ...interface{}) {
+func Debugf(template string, args ...any) {
 	currentDefaultService().Debugf(template, args...)
 }
 
-func Infof(template string, args ...interface{}) {
+func Infof(template string, args ...any) {
 	currentDefaultService().Infof(template, args...)
 }
 
-func Warnf(template string, args ...interface{}) {
+func Warnf(template string, args ...any) {
 	currentDefaultService().Warnf(template, args...)
 }
 
-func Errorf(template string, args ...interface{}) {
+func Errorf(template string, args ...any) {
 	currentDefaultService().Errorf(template, args...)
 }
 
-func Fatalf(template string, args ...interface{}) {
+func Fatalf(template string, args ...any) {
 	currentDefaultService().Fatalf(template, args...)
 }
 
-func Debugw(msg string, keysAndValues ...interface{}) {
+func Debugw(msg string, keysAndValues ...any) {
 	currentDefaultService().Debugw(msg, keysAndValues...)
 }
 
-func Infow(msg string, keysAndValues ...interface{}) {
+func Infow(msg string, keysAndValues ...any) {
 	currentDefaultService().Infow(msg, keysAndValues...)
 }
 
-func Warnw(msg string, keysAndValues ...interface{}) {
+func Warnw(msg string, keysAndValues ...any) {
 	currentDefaultService().Warnw(msg, keysAndValues...)
 }
 
-func Errorw(msg string, keysAndValues ...interface{}) {
+func Errorw(msg string, keysAndValues ...any) {
 	currentDefaultService().Errorw(msg, keysAndValues...)
 }
 
-func Fatalw(msg string, keysAndValues ...interface{}) {
+func Fatalw(msg string, keysAndValues ...any) {
 	currentDefaultService().Fatalw(msg, keysAndValues...)
 }
 
-func NewError(args ...interface{}) error {
+func NewError(args ...any) error {
 	return currentDefaultService().NewError(args...)
 }
 
-func NewErrorf(template string, args ...interface{}) error {
+func NewErrorf(template string, args ...any) error {
 	return currentDefaultService().NewErrorf(template, args...)
 }
 
-func NewErrorw(msg string, keysAndValues ...interface{}) error {
+func NewErrorw(msg string, keysAndValues ...any) error {
 	return currentDefaultService().NewErrorw(msg, keysAndValues...)
 }
 
-func keyValuesToFields(keysAndValues ...interface{}) []Field {
+func keyValuesToFields(keysAndValues ...any) []Field {
 	if len(keysAndValues) < 2 {
 		return nil
 	}
@@ -282,14 +282,14 @@ func renderErrorMessage(msg string, fields []Field) string {
 		return msg
 	}
 
-	var b bytes.Buffer
+	var b strings.Builder
 	b.WriteString(msg)
 	b.WriteByte(' ')
 	for i, field := range fields {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(fmt.Sprintf("%v: %v", field.Key, field.Value))
+		fmt.Fprintf(&b, "%s: %v", field.Key, field.Value)
 	}
 	return b.String()
 }
