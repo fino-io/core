@@ -11,6 +11,8 @@ func TestURLRoundTripEscapedAuthority(t *testing.T) {
 	for _, raw := range []string{
 		"https://[::1]/path", "https://[::1]:8080/path",
 		"https://user%40name:pass%3Aword%40host@example.com/path",
+		"//example.com/path", "//[::1]:8080/path",
+		"../path?key=value", "/path#section",
 	} {
 		parsed, err := ParseUrl(raw)
 		require.NoError(t, err)
@@ -74,7 +76,7 @@ func TestUrl_ToString(t *testing.T) {
 		want   string
 	}{
 		{name: "empty", fields: fields{}, want: ""},
-		{name: "no-scheme", fields: fields{Authority: &Url_Authority{Host: "g.cn"}}, want: "g.cn"},
+		{name: "no-scheme", fields: fields{Authority: &Url_Authority{Host: "g.cn"}}, want: "//g.cn"},
 		{name: "http-scheme", fields: fields{Scheme: "http", Authority: &Url_Authority{Host: "g.cn"}}, want: "http://g.cn"},
 		{name: "https-scheme", fields: fields{Scheme: "https", Authority: &Url_Authority{Host: "g.cn"}}, want: "https://g.cn"},
 		{name: "mailto-scheme", fields: fields{Scheme: "mailto", Authority: &Url_Authority{Host: "g.cn"}}, want: "mailto://g.cn"},
@@ -101,7 +103,7 @@ func TestUrl_ToString(t *testing.T) {
 	}
 }
 
-func TestUrl_FormatWithoutSchema(t *testing.T) {
+func TestUrl_FormatWithoutScheme(t *testing.T) {
 	type fields struct {
 		Scheme    string
 		Authority *Url_Authority
@@ -135,8 +137,8 @@ func TestUrl_FormatWithoutSchema(t *testing.T) {
 				Query:     tt.fields.Query,
 				Fragment:  tt.fields.Fragment,
 			}
-			if got := x.FormatWithoutSchema(); got != tt.want {
-				t.Errorf("FormatWithoutSchema() = %v, want %v", got, tt.want)
+			if got := x.FormatWithoutScheme(); got != tt.want {
+				t.Errorf("FormatWithoutScheme() = %v, want %v", got, tt.want)
 			}
 		})
 	}

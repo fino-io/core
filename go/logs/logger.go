@@ -45,9 +45,6 @@ type zapLogger struct {
 }
 
 func NewLoggerWith(cfg *Config) Logger {
-	if cfg == nil {
-		cfg = NewDefaultConfig()
-	}
 	return newZapLogger(cfg, nil)
 }
 
@@ -165,12 +162,9 @@ func (l *zapLogger) GetLevel() Level {
 }
 
 func (l *zapLogger) With(fields ...Field) Logger {
-	return &zapLogger{
-		level:  l.level,
-		logger: l.logger,
-		fields: mergeFields(l.fields, fields),
-		close:  l.close,
-	}
+	clone := *l
+	clone.fields = mergeFields(l.fields, fields)
+	return &clone
 }
 
 func (l *zapLogger) Log(_ context.Context, entry Entry) {

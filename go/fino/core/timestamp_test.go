@@ -5,6 +5,7 @@ import (
 
 	"github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -18,7 +19,7 @@ const (
 var exampleFormats = []string{
 	`"2019-10-13T19:52:25+08:00"`,
 	`"2019-10-13 19:52:25+0800"`,
-	`"2019-10-13 19:52:25 08:00"`,
+	`"2019-10-13 19:52:25+08:00"`,
 	`"2019-10-13 11:52:25"`,
 	// `"2019/10/13 19:52:25 CST"`,
 	`"2019/10/13 11:52:25"`,
@@ -26,7 +27,7 @@ var exampleFormats = []string{
 	`"2019/10/13 11:52:25+00:00"`,
 	`"2019-10-13 11:52:25+0000"`,
 	`"2019-10-13 11:52:25+00:00"`,
-	`"2019-10-13 18:52:25 07:00"`, // test escaped '+'
+	`"2019-10-13 18:52:25+07:00"`,
 	`"1570967545"`,
 	`"1570967545000"`,
 	`1570967545`,
@@ -34,12 +35,12 @@ var exampleFormats = []string{
 
 func TestTimestampUnmarshal(t *testing.T) {
 	var ts Timestamp
-	jsoniter.Unmarshal([]byte(TimestampString1Json), &ts)
+	require.NoError(t, jsoniter.Unmarshal([]byte(TimestampString1Json), &ts))
 
 	assert.Equal(t, Timestamp1, ts.Seconds)
 	assert.Equal(t, int32(0), ts.Nanoseconds)
 
-	jsoniter.Unmarshal([]byte(TimestampString1Number), &ts)
+	require.NoError(t, jsoniter.Unmarshal([]byte(TimestampString1Number), &ts))
 
 	assert.Equal(t, Timestamp1, ts.Seconds)
 	assert.Equal(t, int32(0), ts.Nanoseconds)
@@ -55,7 +56,7 @@ func TestTimestampParse(t *testing.T) {
 	var ts Timestamp
 	for i := range exampleFormats {
 		ts.Reset()
-		jsoniter.Unmarshal([]byte(exampleFormats[i]), &ts)
+		require.NoError(t, jsoniter.Unmarshal([]byte(exampleFormats[i]), &ts))
 		assert.Equal(t, Timestamp1, ts.Seconds, "%s seconds not equal", exampleFormats[i])
 		assert.Equal(t, int32(0), ts.Nanoseconds, "%s nanos not equal", exampleFormats[i])
 	}

@@ -47,10 +47,13 @@ flowchart LR
 | `NewUrlQuery`、查询 `Add/Set` | 接受标量及标量集合，包括命名类型；不支持的值返回错误，失败不修改已有参数。 |
 | `FromUrlValues` | 深复制查询参数并替换全部键；不保留旧参数，也不共享源切片。 |
 | `UnmarshalParam`、查询 `Unmarshal` | 标量优先使用 `Parser`，其余按 JSON 解码；列表支持值类型或指针类型的枚举和时间。 |
+| `Url.Format`、`FormatWithoutScheme` | `Format` 保留标准 URL 的 scheme 和 authority 前缀；后者返回省略 scheme 与 `//` 的展示文本。 |
 
 `From2` 已删除，转换统一使用 `From`。已有 `Object` 和值映射保留 oneof 类型；结构体中的数字由 JSON 表示决定。`Clone` 保留 Protobuf 未知字段，`From` 只替换目标对象的字段映射。
 
 原生集合不再经过 JSON 中转，因此 `map[string][]byte` 中的元素仍为二进制，`[]float64{1}` 的元素仍为浮点，命名类型和普通指针采用同一转换规则。映射键必须是字符串，字符串与键统一检查 UTF-8。转换检测原生映射、切片和指针的循环引用，正常共享子对象及重叠切片可以转换；错误包含字段名或元素下标。结构体的自定义编码仍由 jsoniter 处理。
+
+查询参数只接受标量或一层标量集合；嵌套集合返回错误，避免递归展开产生歧义和循环引用。空集合的 nil/empty 形态与普通、命名类型一致。
 
 字符串转换统一使用 `ToStringConverter` 和 `Formatter`，`ToString` 与查询参数共享标量格式化逻辑；nil 指针不会调用格式化方法。重复的 `StringLike`、`ValuesCodec`、`NewValueCodec` 和 `ValueCodec.DecodeAny` 已移除。
 
@@ -69,7 +72,7 @@ JSON codec 的职责是保留数据类型的传输表示：
 
 ## 时间与 SQL
 
-`Timestamp` 保存 Unix 秒和纳秒。字符串解析沿用 dateparse，数值 JSON 按 Unix 秒解码；输出统一为 UTC `time.RFC3339Nano`，保留纳秒精度。
+`Timestamp` 保存 Unix 秒和纳秒。字符串解析直接复用 dateparse，不改写输入时区；数值 JSON 按 Unix 秒解码，输出统一为 UTC `time.RFC3339Nano`，保留纳秒精度。查询参数通过 `net/url` 编解码，时区中的 `+` 应编码为 `%2B`；nil 接收者解析返回错误。
 
 `Duration` 保存 int64 秒和纳秒，JSON 输出精确的十进制秒字符串，例如 `"10000000000.123456789s"`。解析精确秒数复用标准库 `math/big`，按纳秒舍入；输入的小时、分钟等写法仍由 `time.ParseDuration` 处理。比较按实际时长进行。
 
@@ -115,3 +118,5 @@ make -C go test-race
 ```
 
 回归测试覆盖长时长与整数边界往返、转换溢出、时间纳秒精度、自定义错误码和详情、nil 错误分类、保留字符串、空集合深复制、键名冲突、查询命名类型与错误不变性、枚举非法数字，以及日志并发、动态级别 handler 和输出资源所有权。
+
+本轮发布的调用方调整见 [CHANGELOG.md](CHANGELOG.md)。

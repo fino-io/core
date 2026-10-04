@@ -10,6 +10,7 @@ Shared protobuf contracts and Go runtime packages for fino projects.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the function map, dependency
 boundaries, runtime conventions, and known limitations.
+See [CHANGELOG.md](CHANGELOG.md) for release changes and migration notes.
 
 ## Use in a Fino project
 

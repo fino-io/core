@@ -1,14 +1,11 @@
 package core
 
 import (
-	"fmt"
 	"net/url"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 func TestQueryUnmarshalKeepsRawValues(t *testing.T) {
@@ -109,6 +106,36 @@ func TestQueryTypedNilFormatter(t *testing.T) {
 		require.Empty(t, ToString(value))
 	})
 	require.Empty(t, query.Vals["empty"].Vals)
+}
+
+func TestQueryRejectsNestedCollections(t *testing.T) {
+	query := newTestQuery(t, "key", "original")
+	cycle := make([]any, 1)
+	cycle[0] = cycle
+	for _, input := range []any{[][]string{{"nested"}}, []any{1, []int{2}}, cycle} {
+		require.Error(t, query.Add("key", input))
+		require.Error(t, query.Set("key", input))
+		require.Equal(t, []string{"original"}, query.Vals["key"].Vals)
+	}
+}
+
+func TestQueryTimestampTimezoneRoundTrip(t *testing.T) {
+	value, err := ParseTimestamp(TimestampString1)
+	require.NoError(t, err)
+	query := newTestQuery(t, "time", value)
+	u := &Url{Path: "/event", Query: query}
+	parsed, err := ParseUrl(u.Format())
+	require.NoError(t, err)
+	var decoded Timestamp
+	require.NoError(t, parsed.Query.Unmarshal("time", &decoded))
+	require.True(t, value.Equal(&decoded))
+	values := NewUrlQueryFrom(url.Values{"time": {TimestampString1}})
+	u.Query = values
+	require.Contains(t, u.Format(), "%2B08%3A00")
+	parsed, err = ParseUrl(u.Format())
+	require.NoError(t, err)
+	require.NoError(t, parsed.Query.Unmarshal("time", &decoded))
+	require.True(t, value.Equal(&decoded))
 }
 
 type MyToStringStruct struct{}
@@ -279,12 +306,4 @@ func Test_splitQuoteString(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test_unmarshal(t *testing.T) {
-	arrayStr := `["bar", "bba"]`
-	var v []string
-	err := jsoniter.ConfigFastest.UnmarshalFromString(arrayStr, &v)
-	fmt.Println(err)
-	fmt.Println(v)
 }

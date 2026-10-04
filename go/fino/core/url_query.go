@@ -108,19 +108,26 @@ func queryValueFormat(val any) ([]string, error) {
 	if text, ok := formatScalar(val); ok {
 		return []string{text}, nil
 	}
-	switch v.Kind() {
-	case reflect.Slice, reflect.Array:
-		values := make([]string, 0, v.Len())
-		for i := 0; i < v.Len(); i++ {
-			element, err := queryValueFormat(v.Index(i).Interface())
-			if err != nil {
-				return nil, err
-			}
-			values = append(values, element...)
-		}
-		return values, nil
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
+		return nil, fmt.Errorf("unsupported query value: %T", val)
 	}
-	return nil, fmt.Errorf("unsupported query value: %T", val)
+	var values []string
+	if v.Kind() == reflect.Array || !v.IsNil() {
+		values = make([]string, 0, v.Len())
+	}
+	for i := 0; i < v.Len(); i++ {
+		element := v.Index(i).Interface()
+		rv := reflect.ValueOf(element)
+		if !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil()) {
+			continue
+		}
+		text, ok := formatScalar(element)
+		if !ok {
+			return nil, fmt.Errorf("unsupported query element %d: %T", i, element)
+		}
+		values = append(values, text)
+	}
+	return values, nil
 }
 
 // Unmarshal

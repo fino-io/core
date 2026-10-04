@@ -89,10 +89,6 @@ func (x *Url) Format() string {
 		u.RawQuery = query.Encode()
 	}
 
-	if u.Scheme == "" {
-		return strings.TrimPrefix(u.String(), "//")
-	}
-
 	return u.String()
 }
 
@@ -100,7 +96,8 @@ func (x *Url) ToString() string {
 	return x.Format()
 }
 
-func (x *Url) FormatWithoutSchema() string {
+// FormatWithoutScheme returns a display form without the scheme or leading //.
+func (x *Url) FormatWithoutScheme() string {
 	if x == nil {
 		return ""
 	}
@@ -112,5 +109,5 @@ func (x *Url) FormatWithoutSchema() string {
 		Fragment:  x.Fragment,
 	}
 
-	return u.Format()
+	return strings.TrimPrefix(u.Format(), "//")
 }

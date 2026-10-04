@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -209,5 +208,5 @@ func TestObject_AsMap(t *testing.T) {
 	assert.NoError(t, err)
 	bytes, err := jsoniter.Marshal(got)
 	assert.NoError(t, err)
-	fmt.Println(string(bytes))
+	assert.JSONEq(t, `{"map":{"inmap":{}}}`, string(bytes))
 }

@@ -24,6 +24,24 @@ func TestDurationBoundaryConversions(t *testing.T) {
 	require.Equal(t, float64(10000000000)/3600, large.ToHours())
 }
 
+func TestTimestampParseKeepsTimezoneInput(t *testing.T) {
+	for _, input := range []string{
+		"2019-10-13 11:52:25 UTC", "2019-10-13 11:52:25 +0000",
+		"2019-10-13T19:52:25+08:00",
+	} {
+		t.Run(input, func(t *testing.T) {
+			value, err := ParseTimestamp(input)
+			require.NoError(t, err)
+			require.Equal(t, Timestamp1, value.Seconds)
+		})
+	}
+	value := &Timestamp{Seconds: 1, Nanoseconds: 2}
+	require.Error(t, value.Parse("invalid time"))
+	require.Equal(t, int64(1), value.Seconds)
+	require.Equal(t, int32(2), value.Nanoseconds)
+	require.Error(t, (*Timestamp)(nil).Parse(TimestampString1))
+}
+
 func TestTimeSQLScan(t *testing.T) {
 	duration := newTestDuration(t, 2.5)
 	for _, input := range []any{float64(1.5), "1.5", []byte("1.5")} {
