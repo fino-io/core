@@ -2,6 +2,16 @@
 
 ## 未发布
 
+### 边界校验与基础能力补齐
+
+- 查询 `Unmarshal` 将每个重复参数作为一个列表元素，保留逗号、空格、引号、空字符串和方括号文本。原来 `?tag=a,b` 或 `?tag=["a","b"]` 的隐式列表解析需改为重复参数，或显式调用 `UnmarshalParam`。固定数组要求元素数量一致。参数解码失败保留目标值。
+- `Value`、`Object`、`Timestamp`、`Duration`、`Url` 支持标准 `encoding/json` 的紧凑协议。此前标准库输出内部字段结构的调用方需同步迁移；契约 JSON 继续使用 `protojson`。
+- 新增 `CheckValid`：Timestamp 限定公元 1–9999 年及合法纳秒；Duration 保留 int64 秒范围但要求规范的纳秒；Value/Object/Values 检查负数幅值、UTF-8 和循环引用。越界 JSON 整数直接返回错误，浮点需明确包含小数点或指数。
+- Date、TimeOfDay、DateTime 新增解析、格式化、校验及原生时间转换；TimeZone 支持 IANA 名称优先、固定 UTC 偏移和 nil 时区的明确规则。
+- `logs.NewLoggerWith` 改为返回 `(Logger, error)`，调用方必须处理配置错误；新增 `NewLoggerWithWriter`，不接管 writer 的关闭。
+- 补充核心回归/fuzz 用例，启用仓库内完整 lint、Go 版本矩阵和 protobuf JSON 标签契约测试。不新增运行时依赖，不修改 protobuf 字段或生成文件。
+- 复核补齐 jsoniter 循环值编码保护、查询指针列表的字面解析、被时区规则跳过的日期校验，以及自定义日志 writer 的空指针校验。
+
 本轮收敛 Go 运行时的数据转换、错误分类、时间处理和日志生命周期。包含 Go API、紧凑 JSON 与 SQL 存储行为变化，调用方需要同步调整。Protobuf 契约及 `.pb.go` 保持不变。
 
 ### API 调整

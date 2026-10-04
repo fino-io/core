@@ -38,7 +38,7 @@ func readJSONObject(iter *jsoniter.Iterator) map[string]*Value {
 func (codec *ObjectCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 	next := iter.WhatIsNext()
 	if next != jsoniter.ObjectValue && next != jsoniter.NilValue {
-		iter.ReportError("ObjectCodec.Decode", "expected JSON object")
+		iter.ReportError("objectCodec.Decode", "expected JSON object")
 		return
 	}
 
@@ -59,4 +59,22 @@ func (codec *ObjectCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 		return
 	}
 	stream.WriteVal(values)
+}
+
+func (x *Object) MarshalJSON() ([]byte, error) {
+	if err := x.CheckValid(); err != nil {
+		return nil, err
+	}
+	return marshalJSONCodec(x, &ObjectCodec{})
+}
+
+func (x *Object) UnmarshalJSON(data []byte) error {
+	if x == nil {
+		return fmt.Errorf("object.UnmarshalJSON: nil receiver")
+	}
+	value, err := unmarshalJSONCodec[Object](data, &ObjectCodec{})
+	if err == nil {
+		x.Vals = value.Vals
+	}
+	return err
 }

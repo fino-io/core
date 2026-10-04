@@ -43,7 +43,7 @@ mockgen:
 lint:
 	$(if $(GO_LINT), ,go install $(GO_LINT_URI))
 	@echo "##### Running golangci-lint"
-	golangci-lint run -D staticcheck -D unused --timeout=2m
+	golangci-lint run --config .golangci.yml --timeout=2m
 
 sec:
 	$(if $(GO_SEC), ,go install $(GO_SEC_URI))

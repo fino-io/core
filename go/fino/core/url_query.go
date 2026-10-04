@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 func NewUrlQuery(kvs ...any) (*Url_Query, error) {
@@ -102,6 +100,11 @@ func queryValueFormat(val any) ([]string, error) {
 	if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
 		return nil, nil
 	}
+	if checked, ok := val.(interface{ CheckValid() error }); ok {
+		if err := checked.CheckValid(); err != nil {
+			return nil, err
+		}
+	}
 	if values, ok := val.([]string); ok {
 		return slices.Clone(values), nil
 	}
@@ -121,6 +124,11 @@ func queryValueFormat(val any) ([]string, error) {
 		if !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil()) {
 			continue
 		}
+		if checked, ok := element.(interface{ CheckValid() error }); ok {
+			if err := checked.CheckValid(); err != nil {
+				return nil, fmt.Errorf("query element %d: %w", i, err)
+			}
+		}
 		text, ok := formatScalar(element)
 		if !ok {
 			return nil, fmt.Errorf("unsupported query element %d: %T", i, element)
@@ -130,21 +138,9 @@ func queryValueFormat(val any) ([]string, error) {
 	return values, nil
 }
 
-// Unmarshal
-// list type
-//
-//	foo=bar&foo=baz
-//	foo=bar,baz
-//	foo="bar","baz"
-//	foo=["bar","baz"]
-//
-// map
-//
-//	foo=key1,bar,key2,baz <not support>
-//
-// object
-//
-//	foo={"key1":"bar","key2","baz"}
+// Unmarshal decodes repeated parameters as literal list elements. Use
+// UnmarshalParam explicitly to parse a comma-separated or JSON-encoded list.
+// Missing parameters leave the destination unchanged, as do decoding errors.
 func (x *Url_Query) Unmarshal(name string, value any) error {
 	param := x.GetVals()[name]
 	if len(param.GetVals()) == 0 {
@@ -155,31 +151,55 @@ func (x *Url_Query) Unmarshal(name string, value any) error {
 	if err != nil {
 		return err
 	}
-	if (v.Kind() != reflect.Slice && v.Kind() != reflect.Array) || len(param.Vals) == 1 {
-		return unmarshalParam(param.Vals[0], value, v)
+	typ := v.Type()
+	for typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
 	}
-	if isStringParamType(v.Type().Elem()) {
-		data, err := json.Marshal(param.Vals)
-		if err != nil {
-			return err
+	if typ.Kind() != reflect.Slice && typ.Kind() != reflect.Array {
+		return UnmarshalParam(param.Vals[0], value)
+	}
+	decoded := reflect.New(v.Type()).Elem()
+	list := decoded
+	for list.Kind() == reflect.Ptr {
+		list.Set(reflect.New(list.Type().Elem()))
+		list = list.Elem()
+	}
+	if list.Kind() == reflect.Array && list.Len() != len(param.Vals) {
+		return fmt.Errorf("query %q: expected %d elements, got %d", name, list.Len(), len(param.Vals))
+	}
+	if list.Kind() == reflect.Slice {
+		list.Set(reflect.MakeSlice(list.Type(), len(param.Vals), len(param.Vals)))
+	}
+	for i, raw := range param.Vals {
+		if err := decodeParam(raw, list.Index(i)); err != nil {
+			return fmt.Errorf("query %q element %d: %w", name, i, err)
 		}
-		return unmarshalParam(string(data), value, v)
 	}
-	return unmarshalParam("["+strings.Join(param.Vals, ",")+"]", value, v)
+	v.Set(decoded)
+	return nil
 }
 
+// UnmarshalParam parses one scalar, a comma-separated list, or a JSON value.
+// It replaces the destination only after the whole input succeeds.
 func UnmarshalParam(str string, value any) error {
 	v, err := paramDestination(value)
 	if err != nil {
 		return err
 	}
-	return unmarshalParam(str, value, v)
+	decoded := reflect.New(v.Type()).Elem()
+	if err := decodeParam(str, decoded); err != nil {
+		return err
+	}
+	v.Set(decoded)
+	return nil
 }
 
-func unmarshalParam(str string, value any, v reflect.Value) error {
-	if len(str) == 0 {
-		return nil
+func decodeParam(str string, v reflect.Value) error {
+	if v.Kind() == reflect.Ptr {
+		v.Set(reflect.New(v.Type().Elem()))
+		return decodeParam(str, v.Elem())
 	}
+	value := v.Addr().Interface()
 	if parser, ok := value.(Parser); ok {
 		return parser.Parse(str)
 	}
@@ -202,12 +222,12 @@ func unmarshalParam(str string, value any, v reflect.Value) error {
 			}
 			str = "[" + str + "]"
 		}
-		return jsoniter.UnmarshalFromString(str, value)
+		return readJSON([]byte(str), value)
 	default:
 		if isStringParamType(v.Type()) {
 			str = QuoteString(str)
 		}
-		err := jsoniter.UnmarshalFromString(str, value)
+		err := readJSON([]byte(str), value)
 		if err != nil {
 			return fmt.Errorf("couldn't decode value from %v, error: %w", str, err)
 		}
@@ -241,5 +261,7 @@ func splitQuotedString(str string) []string {
 func isStringParamType(t reflect.Type) bool {
 	return t.Kind() == reflect.String ||
 		t.Implements(reflect.TypeFor[ToStringConverter]()) ||
-		reflect.PointerTo(t).Implements(reflect.TypeFor[ToStringConverter]())
+		reflect.PointerTo(t).Implements(reflect.TypeFor[ToStringConverter]()) ||
+		t.Implements(reflect.TypeFor[Formatter]()) ||
+		reflect.PointerTo(t).Implements(reflect.TypeFor[Formatter]())
 }

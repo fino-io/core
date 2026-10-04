@@ -28,12 +28,16 @@ func ParseTimestamp(value string) (*Timestamp, error) {
 
 func (x *Timestamp) Parse(value string) error {
 	if x == nil {
-		return errors.New("Timestamp.Parse: nil receiver")
+		return errors.New("timestamp.Parse: nil receiver")
 	}
 	t, err := dateparse.ParseIn(value, time.UTC)
 	if err != nil {
 		return err
 	}
-	x.FromTime(t)
+	parsed := FromTime(t)
+	if err := parsed.CheckValid(); err != nil {
+		return err
+	}
+	x.Seconds, x.Nanoseconds = parsed.Seconds, parsed.Nanoseconds
 	return nil
 }

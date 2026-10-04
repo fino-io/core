@@ -8,7 +8,7 @@ import (
 
 func TestDuration_FromSeconds(t *testing.T) {
 	duration := &Duration{}
-	duration.FromSeconds(1.001)
+	assert.NoError(t, duration.FromSeconds(1.001))
 	assert.Equal(t, int64(1), duration.Seconds)
 	assert.Equal(t, int32(1000000), duration.Nanoseconds)
 }

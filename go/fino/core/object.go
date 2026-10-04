@@ -88,7 +88,7 @@ func (x *Object) To(val any) error {
 	}
 	rv := reflect.ValueOf(val)
 	if !rv.IsValid() || rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return fmt.Errorf("Object.To: expected a non-nil pointer, got %T", val)
+		return fmt.Errorf("object.To: expected a non-nil pointer, got %T", val)
 	}
 
 	marshal, err := jsoniter.Marshal(x.AsMap())
@@ -117,7 +117,7 @@ func (x *Object) From(val any) error {
 		return nil
 	}
 	if value.GetKind() != ValueKind_VALUE_KIND_OBJECT {
-		return fmt.Errorf("Object.From: expected an object, got %T", val)
+		return fmt.Errorf("object.From: expected an object, got %T", val)
 	}
 	x.Vals = value.GetObject().Clone().GetVals()
 	return nil

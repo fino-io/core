@@ -38,7 +38,7 @@ func (x *Duration) Parse(value string) error {
 		return err
 	}
 	if x == nil {
-		return fmt.Errorf("Duration.Parse: nil receiver")
+		return fmt.Errorf("duration.Parse: nil receiver")
 	}
 	x.FromDuration(d)
 	return nil

@@ -31,24 +31,52 @@ func decodeJSON[T any](data []byte, destination *T) error {
 	return nil
 }
 
-// Register codecs during package initialization, before any encoding or decoding.
+// Standard JSON hooks reuse the wire codecs without depending on jsoniter's
+// choice between a registered codec and a MarshalJSON method.
+func marshalJSONCodec[T any](value *T, codec jsoniter.ValEncoder) ([]byte, error) {
+	if value == nil {
+		return []byte("null"), nil
+	}
+	stream := jsoniter.NewStream(jsoniter.ConfigDefault, nil, 256)
+	codec.Encode(unsafe.Pointer(value), stream)
+	return stream.Buffer(), stream.Error
+}
+
+func unmarshalJSONCodec[T any](data []byte, codec jsoniter.ValDecoder) (*T, error) {
+	if !json.Valid(data) {
+		return nil, errors.New("invalid JSON")
+	}
+	value := new(T)
+	iter := jsoniter.ParseBytes(jsoniter.ConfigDefault, data)
+	codec.Decode(unsafe.Pointer(value), iter)
+	if iter.Error != nil && iter.Error != io.EOF {
+		return nil, iter.Error
+	}
+	return value, nil
+}
+
+// RegisterJSONTypeEncoder registers a type encoder during package initialization.
 // jsoniter caches codecs, so runtime registration is not supported.
 func RegisterJSONTypeEncoder(typ string, encoder jsoniter.ValEncoder) {
 	jsoniter.RegisterTypeEncoder(typ, encoder)
 }
 
+// RegisterJSONTypeDecoder registers a type decoder during package initialization.
 func RegisterJSONTypeDecoder(typ string, decoder jsoniter.ValDecoder) {
 	jsoniter.RegisterTypeDecoder(typ, decoder)
 }
 
+// RegisterJSONFieldEncoder registers a field encoder during package initialization.
 func RegisterJSONFieldEncoder(typ, field string, encoder jsoniter.ValEncoder) {
 	jsoniter.RegisterFieldEncoder(typ, field, encoder)
 }
 
+// RegisterJSONFieldDecoder registers a field decoder during package initialization.
 func RegisterJSONFieldDecoder(typ, field string, decoder jsoniter.ValDecoder) {
 	jsoniter.RegisterFieldDecoder(typ, field, decoder)
 }
 
+// RegisterJSONValuesCodec registers a wrapper's slice field as its JSON value.
 func RegisterJSONValuesCodec[T any, M any](typ string, field func(*M) *[]T) {
 	registerJSONFieldCodec(typ, field)
 }

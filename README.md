@@ -64,5 +64,11 @@ make -C go test
 with `make -C go <target>`, including `test-fast`, `test-full`, `test-race`,
 `test-coverage`, `vet`, `lint`, `sec`, `vuln`, and `verify`.
 
+Lint uses the repository's `go/.golangci.yml`, including `staticcheck` and
+`unused`. The GitHub workflow tests Go 1.22 and 1.25 and runs the repository's
+lint configuration. Go tests verify that protobuf JSON tags match the message
+descriptors. Generate protobuf files and enum helpers with Fino as described
+above.
+
 Changing the protobuf package name, field numbers, extension names, or extension
 field numbers is a public compatibility change and must be treated as breaking.

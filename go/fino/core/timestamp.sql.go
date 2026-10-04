@@ -9,6 +9,9 @@ import (
 // Value implements driver.Valuer for Timestamp.
 func (x *Timestamp) Value() (driver.Value, error) {
 	if x != nil {
+		if err := x.CheckValid(); err != nil {
+			return nil, err
+		}
 		return x.ToTime(), nil
 	}
 
@@ -17,7 +20,7 @@ func (x *Timestamp) Value() (driver.Value, error) {
 
 func (x *Timestamp) Scan(src any) error {
 	if x == nil {
-		return fmt.Errorf("Timestamp.Scan: nil receiver")
+		return fmt.Errorf("timestamp.Scan: nil receiver")
 	}
 
 	switch bs := src.(type) {
@@ -28,7 +31,11 @@ func (x *Timestamp) Scan(src any) error {
 	case string:
 		return x.Parse(bs)
 	case time.Time:
-		x.FromTime(bs)
+		parsed := FromTime(bs)
+		if err := parsed.CheckValid(); err != nil {
+			return err
+		}
+		x.Seconds, x.Nanoseconds = parsed.Seconds, parsed.Nanoseconds
 	default:
 		return fmt.Errorf("could not decode type %T -> %T", src, x)
 	}

@@ -2,9 +2,11 @@ package logs
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -44,14 +46,26 @@ type zapLogger struct {
 	close  func() error
 }
 
-func NewLoggerWith(cfg *Config) Logger {
-	return newZapLogger(cfg, nil)
+func NewLoggerWith(cfg *Config) (Logger, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return newZapLogger(cfg, nil), nil
+}
+
+// NewLoggerWithWriter uses a caller-owned writer, which Close never closes.
+func NewLoggerWithWriter(cfg *Config, writer io.Writer) (Logger, error) {
+	if writer == nil || reflect.ValueOf(writer).Kind() == reflect.Ptr && reflect.ValueOf(writer).IsNil() {
+		return nil, fmt.Errorf("log writer must not be nil")
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return newZapLogger(cfg, writer), nil
 }
 
 func newZapLogger(cfg *Config, sink io.Writer) *zapLogger {
-	if cfg == nil {
-		cfg = NewDefaultConfig()
-	}
+	cfg = cfg.withDefaults()
 
 	level := zap.NewAtomicLevel()
 	if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {

@@ -61,14 +61,11 @@ func TestValuesCodec_Decode5(t *testing.T) {
 	assert.Equal(t, float64(-9223372036854776000), vt.Value.GetDouble())
 }
 
-func TestValuesCodec_Decode6(t *testing.T) {
+func TestValuesCodecRejectsOutOfRangeInteger(t *testing.T) {
 	json := `{"tag":"integer", "value": 18446744073709551616}`
 	vt := &ValueTag{}
 	err := jsoniter.ConfigDefault.UnmarshalFromString(json, vt)
-	assert.NoError(t, err)
-	assert.Equal(t, "integer", vt.Tag)
-	assert.Equal(t, ValueKind_VALUE_KIND_NUMBER, vt.Value.GetKind())
-	assert.Equal(t, float64(18446744073709552000), vt.Value.GetDouble())
+	assert.Error(t, err)
 }
 
 func TestValuesCodec_Decode7(t *testing.T) {

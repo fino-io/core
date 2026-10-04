@@ -82,13 +82,20 @@ func (x *Timestamp) Date() *Date {
 
 func (x *Timestamp) Add(d *Duration) (*Timestamp, error) {
 	if x == nil || d == nil {
-		return nil, fmt.Errorf("Timestamp.Add: nil timestamp or duration")
+		return nil, fmt.Errorf("timestamp.Add: nil timestamp or duration")
+	}
+	if err := x.CheckValid(); err != nil {
+		return nil, err
 	}
 	duration, err := d.ToDuration()
 	if err != nil {
 		return nil, err
 	}
-	return FromTime(x.ToTime().Add(duration)), nil
+	result := FromTime(x.ToTime().Add(duration))
+	if err := result.CheckValid(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (x *Timestamp) AddDate(year, month, day int) *Timestamp {

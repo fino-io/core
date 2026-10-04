@@ -36,10 +36,19 @@ func newValue(val any, visiting map[valueVisit]bool) (*Value, error) {
 	case json.Number:
 		return parseNumberValue(string(v))
 	case *Value:
+		if err := v.CheckValid(); err != nil {
+			return nil, err
+		}
 		return v, nil
 	case *Object:
+		if err := v.CheckValid(); err != nil {
+			return nil, err
+		}
 		return NewObjectValue(v), nil
 	case *Values:
+		if err := v.CheckValid(); err != nil {
+			return nil, err
+		}
 		return NewValuesValue(v), nil
 	}
 

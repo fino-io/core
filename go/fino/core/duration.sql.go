@@ -9,6 +9,9 @@ import (
 // Value Implement driver.Valuer and sql.Scanner interfaces on Duration
 func (x *Duration) Value() (driver.Value, error) {
 	if x != nil {
+		if err := x.CheckValid(); err != nil {
+			return nil, err
+		}
 		return strings.TrimSuffix(x.Format(), "s"), nil
 	}
 	return nil, nil
@@ -16,7 +19,7 @@ func (x *Duration) Value() (driver.Value, error) {
 
 func (x *Duration) Scan(src any) error {
 	if x == nil {
-		return fmt.Errorf("Duration.Scan: nil receiver")
+		return fmt.Errorf("duration.Scan: nil receiver")
 	}
 
 	switch duration := src.(type) {

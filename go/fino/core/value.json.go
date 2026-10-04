@@ -32,6 +32,10 @@ func init() {
 
 type ValueCodec struct{}
 
+// Track the active Value path on the stream so jsoniter can reject cycles
+// without repeatedly validating every subtree.
+type valueEncodePath map[*Value]bool
+
 func decodeScalarValue(a jsoniter.Any) (*Value, error) {
 	if err := a.LastError(); err != nil {
 		return nil, err
@@ -84,6 +88,9 @@ func parseNumberValue(raw string) (*Value, error) {
 	if value, err := strconv.ParseUint(raw, 10, 64); err == nil {
 		return NewUint64Value(value), nil
 	}
+	if !strings.ContainsAny(raw, ".eE") {
+		return nil, fmt.Errorf("json integer out of range: %q", raw)
+	}
 	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
 		return nil, fmt.Errorf("invalid JSON number: %q", raw)
@@ -115,7 +122,7 @@ func (codec *ValueCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 	}
 	v, err := decodeScalarValue(a)
 	if err != nil {
-		iter.ReportError("ValueCodec.Decode", err.Error())
+		iter.ReportError("valueCodec.Decode", err.Error())
 		return
 	}
 	(*Value)(ptr).Val = v.Val
@@ -131,6 +138,26 @@ func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	if val == nil {
 		stream.WriteNil()
 		return
+	}
+	if err := val.checkScalar(); err != nil {
+		stream.Error = err
+		return
+	}
+	switch val.Val.(type) {
+	case *Value_ValuesValue, *Value_ObjectValue:
+		previous := stream.Attachment
+		path, ok := previous.(valueEncodePath)
+		if !ok {
+			path = make(valueEncodePath)
+			stream.Attachment = path
+			defer func() { stream.Attachment = previous }()
+		}
+		if path[val] {
+			stream.Error = fmt.Errorf("cyclic value")
+			return
+		}
+		path[val] = true
+		defer delete(path, val)
 	}
 	switch v := val.Val.(type) {
 	case *Value_BoolValue:
@@ -155,10 +182,6 @@ func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 			stream.WriteRaw(number)
 		}
 	case *Value_StringValue:
-		if !utf8.ValidString(v.StringValue) {
-			stream.Error = fmt.Errorf("invalid UTF-8 in string: %q", v.StringValue)
-			return
-		}
 		stream.WriteVal(jsonString(v.StringValue))
 	case *Value_BytesValue:
 		stream.WriteString(Base64Prefix + base64.StdEncoding.EncodeToString(v.BytesValue))
@@ -169,4 +192,22 @@ func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	default:
 		stream.WriteNil()
 	}
+}
+
+func (x *Value) MarshalJSON() ([]byte, error) {
+	if err := x.CheckValid(); err != nil {
+		return nil, err
+	}
+	return marshalJSONCodec(x, &ValueCodec{})
+}
+
+func (x *Value) UnmarshalJSON(data []byte) error {
+	if x == nil {
+		return fmt.Errorf("value.UnmarshalJSON: nil receiver")
+	}
+	value, err := unmarshalJSONCodec[Value](data, &ValueCodec{})
+	if err == nil {
+		x.Val = value.Val
+	}
+	return err
 }

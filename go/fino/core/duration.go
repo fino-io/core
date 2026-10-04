@@ -40,7 +40,7 @@ func (x *Duration) FromSeconds(sec float64) error {
 
 func (x *Duration) parseSeconds(value string) error {
 	if x == nil {
-		return fmt.Errorf("Duration: nil receiver")
+		return fmt.Errorf("duration: nil receiver")
 	}
 	if !json.Valid([]byte(value)) {
 		return fmt.Errorf("invalid duration seconds: %q", value)
@@ -62,7 +62,7 @@ func (x *Duration) parseSeconds(value string) error {
 
 func (x *Duration) setSeconds(seconds *big.Rat) error {
 	if x == nil {
-		return fmt.Errorf("Duration: nil receiver")
+		return fmt.Errorf("duration: nil receiver")
 	}
 	seconds.Mul(seconds, big.NewRat(int64(time.Second), 1))
 	nanos, remainder := new(big.Int), new(big.Int)
@@ -86,6 +86,11 @@ func (x *Duration) totalNanoseconds() *big.Int {
 }
 
 func (x *Duration) ToDuration() (time.Duration, error) {
+	if x != nil {
+		if err := x.CheckValid(); err != nil {
+			return 0, err
+		}
+	}
 	nanos := x.totalNanoseconds()
 	if !nanos.IsInt64() {
 		return 0, fmt.Errorf("duration exceeds time.Duration range: %s", x.Format())

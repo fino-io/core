@@ -5,11 +5,14 @@
 ## 使用
 
 ```go
-logger := logs.NewLoggerWith(&logs.Config{
+logger, err := logs.NewLoggerWith(&logs.Config{
     Level: "info",
     Encode: "json",
     Output: "console",
 })
+if err != nil {
+    return err
+}
 defer logger.Close()
 
 logs.SetLogger(logger)
@@ -21,6 +24,13 @@ svc.Infow("worker ready", "id", 7)
 ```
 
 `Logger` 提供 `SetLevel`、`GetLevel`、`With`、`Log`、`LevelHandler`、`Sync`、`Close`。
+
+`NewLoggerWith` 返回 `(Logger, error)`，拒绝非法级别、编码、输出类型及负数文件限制。
+未指定的级别、编码、输出和文件路径使用默认值；文件保留数量和天数为零表示不限制。
+配置初始化不会修改传入的 `Config`。
+
+自定义输出使用 `NewLoggerWithWriter(cfg, writer)`，同样返回 `(Logger, error)`。
+writer 由调用方管理，`Sync` 会转发同步操作，`Close` 不关闭调用方的 writer。
 
 `Service` 的配置不可变。`WithLogger` 和 `WithContext` 返回新实例，父实例保持原配置；全局 `SetLogger` 可以并发替换默认 logger。派生 logger 共享级别和输出资源。
 

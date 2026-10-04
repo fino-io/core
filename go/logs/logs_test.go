@@ -139,7 +139,8 @@ func TestPackageDefaultLoggerSwap(t *testing.T) {
 }
 
 func TestLevelHandlerServeHTTP(t *testing.T) {
-	logger := NewLoggerWith(&Config{Level: "info"})
+	logger, err := NewLoggerWith(&Config{Level: "info"})
+	require.NoError(t, err)
 	handler := logger.LevelHandler()
 
 	req := httptest.NewRequest(http.MethodGet, "/level", nil)
@@ -162,7 +163,7 @@ func TestLevelHandlerServeHTTP(t *testing.T) {
 func TestFileOutput(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "app.log")
-	logger := NewLoggerWith(&Config{
+	logger, err := NewLoggerWith(&Config{
 		Level:  "info",
 		Encode: "json",
 		Output: "file",
@@ -175,6 +176,7 @@ func TestFileOutput(t *testing.T) {
 			MaxAge:     1,
 		},
 	})
+	require.NoError(t, err)
 
 	logger.Log(context.Background(), Entry{
 		Level:   InfoLevel,

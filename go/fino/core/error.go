@@ -73,7 +73,7 @@ func (e *Error) StatusCode() int {
 
 func (e *Error) AddDetail(detail any) error {
 	if e == nil {
-		return fmt.Errorf("Error.AddDetail: nil receiver")
+		return fmt.Errorf("error.AddDetail: nil receiver")
 	}
 	v, err := NewValue(detail)
 	if err != nil {

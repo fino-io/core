@@ -30,6 +30,9 @@ func (x *Values) AsSlice() []any {
 }
 
 func (x *Values) MarshalJSON() ([]byte, error) {
+	if err := x.CheckValid(); err != nil {
+		return nil, err
+	}
 	if x == nil {
 		return []byte("null"), nil
 	}

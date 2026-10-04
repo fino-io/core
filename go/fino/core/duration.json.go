@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"io"
 	"unsafe"
 
@@ -23,18 +24,18 @@ func (codec *DurationCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) 
 	duration := (*Duration)(ptr)
 	if a.ValueType() == jsoniter.NumberValue {
 		if err := duration.parseSeconds(a.ToString()); err != nil {
-			iter.ReportError("Decode Duration", err.Error())
+			iter.ReportError("decode duration", err.Error())
 		}
 	} else if a.ValueType() == jsoniter.StringValue {
 		str := a.ToString()
 		err := duration.Parse(str)
 		if err != nil {
-			iter.ReportError("Decode Duration", err.Error())
+			iter.ReportError("decode duration", err.Error())
 		}
 	} else if a.ValueType() == jsoniter.NilValue {
 		duration.Seconds, duration.Nanoseconds = 0, 0
 	} else {
-		iter.ReportError("Decode Duration", "expected seconds or duration string")
+		iter.ReportError("decode duration", "expected seconds or duration string")
 	}
 }
 
@@ -45,5 +46,24 @@ func (codec *DurationCodec) IsEmpty(ptr unsafe.Pointer) bool {
 
 func (codec *DurationCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	duration := (*Duration)(ptr)
+	if err := duration.CheckValid(); err != nil {
+		stream.Error = err
+		return
+	}
 	stream.WriteVal(duration.Format())
+}
+
+func (x *Duration) MarshalJSON() ([]byte, error) {
+	return marshalJSONCodec(x, &DurationCodec{})
+}
+
+func (x *Duration) UnmarshalJSON(data []byte) error {
+	if x == nil {
+		return fmt.Errorf("duration.UnmarshalJSON: nil receiver")
+	}
+	value, err := unmarshalJSONCodec[Duration](data, &DurationCodec{})
+	if err == nil {
+		x.Seconds, x.Nanoseconds = value.Seconds, value.Nanoseconds
+	}
+	return err
 }

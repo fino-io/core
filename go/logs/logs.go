@@ -45,7 +45,7 @@ func (s *Service) WithContext(ctx context.Context) *Service {
 }
 
 func newDefaultService() *Service {
-	return NewServiceWithCallerSkip(NewLoggerWith(NewDefaultConfig()), 1)
+	return NewServiceWithCallerSkip(newZapLogger(nil, nil), 1)
 }
 
 var (

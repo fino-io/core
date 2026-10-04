@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
@@ -83,7 +84,7 @@ func (codec *UrlStructCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator)
 		return
 	}
 	if iter.WhatIsNext() != jsoniter.ObjectValue {
-		iter.ReportError("UrlStructCodec.Decode", "expected JSON object")
+		iter.ReportError("urlStructCodec.Decode", "expected JSON object")
 		return
 	}
 	url := codec.bareUrl(ptr)
@@ -109,4 +110,20 @@ func (codec *UrlStructCodec) bareUrl(ptr unsafe.Pointer) *BareUrl {
 		return *(**BareUrl)(ptr)
 	}
 	return (*BareUrl)(ptr)
+}
+
+func (x *Url) MarshalJSON() ([]byte, error) {
+	return marshalJSONCodec(x, &UrlStringCodec{})
+}
+
+func (x *Url) UnmarshalJSON(data []byte) error {
+	if x == nil {
+		return fmt.Errorf("url.UnmarshalJSON: nil receiver")
+	}
+	value, err := unmarshalJSONCodec[Url](data, &UrlStringCodec{})
+	if err == nil {
+		x.Scheme, x.Authority, x.Path = value.Scheme, value.Authority, value.Path
+		x.Query, x.Fragment = value.Query, value.Fragment
+	}
+	return err
 }

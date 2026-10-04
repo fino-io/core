@@ -25,7 +25,7 @@ func ParseErrorCode(code string) (*ErrorCode, error) {
 
 func (x *ErrorCode) Parse(code string) error {
 	if x == nil {
-		return fmt.Errorf("ErrorCode.Parse: nil receiver")
+		return fmt.Errorf("errorCode.Parse: nil receiver")
 	}
 	v, err := strconv.ParseInt(code, 10, 32)
 	if err != nil {

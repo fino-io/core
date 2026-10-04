@@ -46,7 +46,7 @@ flowchart LR
 | `StringValues.Contains` | 返回 bool；正则过滤使用编译后的标准库表达式。 |
 | `NewUrlQuery`、查询 `Add/Set` | 接受标量及标量集合，包括命名类型；不支持的值返回错误，失败不修改已有参数。 |
 | `FromUrlValues` | 深复制查询参数并替换全部键；不保留旧参数，也不共享源切片。 |
-| `UnmarshalParam`、查询 `Unmarshal` | 标量优先使用 `Parser`，其余按 JSON 解码；列表支持值类型或指针类型的枚举和时间。 |
+| `UnmarshalParam`、查询 `Unmarshal` | 标量优先使用 `Parser`，失败保留目标值；查询列表逐个解析重复参数，保留字面字符串，`UnmarshalParam` 显式支持逗号或 JSON 列表。 |
 | `Url.Format`、`FormatWithoutScheme` | `Format` 保留标准 URL 的 scheme 和 authority 前缀；后者返回省略 scheme 与 `//` 的展示文本。 |
 
 `From2` 已删除，转换统一使用 `From`。已有 `Object` 和值映射保留 oneof 类型；结构体中的数字由 JSON 表示决定。`Clone` 保留 Protobuf 未知字段，`From` 只替换目标对象的字段映射。
@@ -68,6 +68,8 @@ JSON codec 的职责是保留数据类型的传输表示：
 - 普通字符串若与保留值冲突，或以 `str.` 开头，输出时加 `str.` 前缀；解码先移除这一层转义。因此字符串 `NaN` 和浮点 NaN 可以分别往返。
 - `NewValue` 和 `Object.From` 处理普通 Go 输入时保留字符串原值，只有 Value wire codec 解释保留前缀。
 - 紧凑 JSON 使用 jsoniter codec；`protojson` 使用契约字段表示，两套协议各自使用。
+- `Value`、`Object`、`Values`、`Timestamp`、`Duration`、`Url` 也实现标准 JSON 方法，复用紧凑 codec；完整输入成功后才替换接收者字段。普通 HTTP JSON 编码无需额外注册。
+- `Value`、`Object`、`Values` 提供 `CheckValid`，检查嵌套字符串、键、负数幅值和循环引用。标准 JSON 和 jsoniter 编码入口都拒绝循环值，允许共享子对象。负整数幅值为 1 到 2^63；越界 JSON 整数返回错误，不降级为浮点。需要浮点数据时使用带小数点或指数的 JSON 数字。
 - 原生 Go 视图与 wire JSON 的表示可能不同。标准 `encoding/json` 无法输出原生 NaN、Infinity；需要传输这些值时使用 Value codec。
 - 包装标量、切片、映射和 `Values` 共用字段 codec，直接在外层 iterator/stream 上读写，继承外层的转义和键排序配置，避免中间 JSON 缓冲。字段解码失败保留旧值，null 清零或清空；映射成功解码替换全部键，`StringsMap` 保留值为 null 的条目。
 - 标准 `MarshalJSON` 方法直接编码内部字段，不依赖自身 codec 的注册优先级；`UnmarshalJSON` 通过 `decodeJSON` 解码到临时字段，完整输入解码成功后才替换原值，尾随内容导致的错误同样保留原值。
@@ -76,9 +78,17 @@ JSON codec 的职责是保留数据类型的传输表示：
 
 ## 时间与 SQL
 
-`Timestamp` 保存 Unix 秒和纳秒。字符串解析直接复用 dateparse，不改写输入时区；数值 JSON 按 Unix 秒解码，输出统一为 UTC `time.RFC3339Nano`，保留纳秒精度。查询参数通过 `net/url` 编解码，时区中的 `+` 应编码为 `%2B`；nil 接收者解析返回错误。
+`Timestamp` 保存 Unix 秒和纳秒。`CheckValid` 复用标准 Protobuf 时间校验，允许公元 1–9999 年、0–999999999 纳秒；解析、JSON、SQL 和带 error 的加法入口执行校验。`FromTime` 和无 error 的原始字段访问保留现有签名，直接构造后可显式校验。字符串解析复用 dateparse，不改写输入时区；数值 JSON 按 Unix 秒解码，输出统一为 UTC `time.RFC3339Nano`，保留纳秒精度。查询参数通过 `net/url` 编解码，时区中的 `+` 应编码为 `%2B`；nil 接收者解析返回错误。
 
 `Duration` 保存 int64 秒和纳秒，JSON 输出精确的十进制秒字符串，例如 `"10000000000.123456789s"`。解析精确秒数复用标准库 `math/big`，按纳秒舍入；输入的小时、分钟等写法仍由 `time.ParseDuration` 处理。比较按实际时长进行。
+
+`Duration.CheckValid` 保留完整 int64 秒范围，要求纳秒绝对值小于 10^9，且秒与纳秒同号；JSON、SQL 和 Go 时长转换拒绝非法字段。
+
+`Date`、`TimeOfDay`、`DateTime` 提供 `CheckValid`、`Parse`、`Format` 和 `FromTime`。`Date.ToTime` 接受 location，nil 使用 UTC，并拒绝被时区规则跳过的本地日期；`TimeOfDay.ToDuration` 返回当日时长；`DateTime.ToTime` 使用其时区，并拒绝时区跳变中不存在的本地时间。日期必须完整有效，年份为 1–9999。
+
+`TimeZone.Location` 优先解析 IANA 名称，无名称时使用秒为单位的 UTC 偏移，固定偏移必须为整分钟且绝对值小于 24 小时；nil 时区为 UTC。夏令时回拨中的重复时间沿用 `time.Date` 的选择。`DateTime.Format` 输出 RFC3339Nano 偏移文本，不保留 IANA 名称。
+
+`DateTime.FromTime` 若不能仅靠时区名称还原原始瞬间（例如夏令时回拨中的另一个瞬间或重名固定时区），则保存固定偏移，保证转换往返保留瞬间。
 
 | 函数 | 返回与约束 |
 | --- | --- |
@@ -101,6 +111,8 @@ SQL NULL 扫描到时间类型时清零。`Duration.Value` 输出精确秒数字
 
 `Service` 保存不可变的 logger/context 配置，`WithLogger`、`WithContext` 返回派生实例；全局 `SetLogger` 使用锁替换默认服务。级别调整复用 Zap AtomicLevel。日志字段按初始配置、派生 logger、上下文、单次调用的顺序覆盖。
 
+`NewLoggerWith` 校验配置并返回 `(Logger, error)`；`NewLoggerWithWriter` 接入调用方持有的输出 writer。未指定的字符串配置使用默认值，初始化不修改原配置。
+
 `Logger` 提供 `Sync` 和 `Close`；派生 logger 共享输出资源，文件关闭通过标准库 `sync.OnceValue` 保证只执行一次。控制台和调用方提供的 writer 由各自所有者管理。替换默认 logger 不自动关闭旧实例，应用在最后一个使用者退出后关闭它。
 
 `LevelHandler` 返回 Zap 的动态级别 handler，由应用挂载到已有 HTTP 服务，绑定地址、中间件和关闭过程由应用管理。日志包不再创建 HTTP 服务，也不再提供 `LevelPort`、`LevelPattern` 配置。
@@ -119,8 +131,9 @@ SQL NULL 扫描到时间类型时清零。`Duration.Value` 输出精确秒数字
 make -C go test
 make -C go vet
 make -C go test-race
+make -C go lint
 ```
 
-回归测试覆盖长时长与整数边界往返、转换溢出、时间纳秒精度、自定义错误码和详情、nil 错误分类、保留字符串、空集合深复制、键名冲突、查询命名类型与错误不变性、枚举非法数字，以及日志并发、动态级别 handler 和输出资源所有权。
+回归测试覆盖长时长与整数边界往返、转换溢出、时间纳秒精度、自定义错误码和详情、nil 错误分类、保留字符串、空集合深复制、键名冲突、查询命名类型与错误不变性、枚举非法数字，以及日志并发、动态级别 handler 和输出资源所有权。新增测试覆盖单元素字面 query 列表、参数解码原子性、标准 JSON 与紧凑 JSON 一致性、非法时间/整数、循环值、日历/时区规则和日志配置错误；fuzz 覆盖 query 字符串、Value 字符串和 Timestamp 往返。
 
 本轮发布的调用方调整见 [CHANGELOG.md](CHANGELOG.md)。

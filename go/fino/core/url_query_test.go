@@ -235,12 +235,12 @@ func TestQuery_Unmarshal(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "string-slice-1", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"bar", "bba"}}}}, k: "foo", typ: reflect.TypeOf([]string{}), want: []string{"bar", "bba"}, wantErr: false},
-		{name: "string-slice-2", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"bar,bba"}}}}, k: "foo", typ: reflect.TypeOf([]string{}), want: []string{"bar", "bba"}, wantErr: false},
-		{name: "string-slice-3", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`"bar", "bba"`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{"bar", "bba"}, wantErr: false},
-		{name: "string-slice-4", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`"bar,bba`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{"\"bar", "bba"}, wantErr: false},
-		{name: "string-slice-5", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`["bar", "bba"]`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{"bar", "bba"}, wantErr: false},
+		{name: "string-slice-2", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"bar,bba"}}}}, k: "foo", typ: reflect.TypeOf([]string{}), want: []string{"bar,bba"}, wantErr: false},
+		{name: "string-slice-3", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`"bar", "bba"`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{`"bar", "bba"`}, wantErr: false},
+		{name: "string-slice-4", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`"bar,bba`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{`"bar,bba`}, wantErr: false},
+		{name: "string-slice-5", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`["bar", "bba"]`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{`["bar", "bba"]`}, wantErr: false},
 		{name: "int-slice-1", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123", "234"}}}}, k: "foo", typ: reflect.TypeOf([]int32{}), want: []int32{123, 234}, wantErr: false},
-		{name: "int-slice-2", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123,234"}}}}, k: "foo", typ: reflect.TypeOf([]int32{}), want: []int32{123, 234}, wantErr: false},
+		{name: "int-slice-2", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123,234"}}}}, k: "foo", typ: reflect.TypeOf([]int32{}), want: []int32(nil), wantErr: true},
 		{name: "string-array", query: newTestQuery(t, "foo", []string{"bar", "bba"}), k: "foo", typ: reflect.TypeOf([2]string{}), want: [2]string{"bar", "bba"}},
 		{name: "timestamp", query: newTestQuery(t, "foo", TimestampString1), k: "foo", typ: reflect.TypeOf(Timestamp{}), want: Timestamp{Seconds: Timestamp1}},
 		{name: "timestamp-slice", query: newTestQuery(t, "foo", []string{TimestampString1, TimestampString2}), k: "foo", typ: reflect.TypeOf([]*Timestamp{}), want: []*Timestamp{{Seconds: Timestamp1}, {Seconds: Timestamp1 + 60}}},
