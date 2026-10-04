@@ -43,8 +43,12 @@ flowchart LR
 | `ToLowerCamelKeys`、`ToSnakeKeys` | 返回转换后的新对象；键名冲突返回错误。 |
 | `StringValues.Contains` | 返回 bool；正则过滤使用编译后的标准库表达式。 |
 | `NewUrlQuery`、查询 `Add/Set` | 接受标量及标量集合，包括命名类型；不支持的值返回错误，失败不修改已有参数。 |
+| `FromUrlValues` | 深复制查询参数并替换全部键；不保留旧参数，也不共享源切片。 |
+| `UnmarshalParam`、查询 `Unmarshal` | 标量优先使用 `Parser`，其余按 JSON 解码；列表支持值类型或指针类型的枚举和时间。 |
 
 `From2` 已删除，转换统一使用 `From`。已有 `Object` 和值映射保留 oneof 类型；结构体中的数字由 JSON 表示决定。`Clone` 保留 Protobuf 未知字段，`From` 只替换目标对象的字段映射。
+
+字符串转换统一使用 `ToStringConverter` 和 `Formatter`，`ToString` 与查询参数共享标量格式化逻辑；nil 指针不会调用格式化方法。重复的 `StringLike`、`ValuesCodec`、`NewValueCodec` 和 `ValueCodec.DecodeAny` 已移除。
 
 JSON codec 的职责是保留数据类型的传输表示：
 
@@ -54,7 +58,8 @@ JSON codec 的职责是保留数据类型的传输表示：
 - `NewValue` 和 `Object.From` 处理普通 Go 输入时保留字符串原值，只有 Value wire codec 解释保留前缀。
 - 紧凑 JSON 使用 jsoniter codec；`protojson` 使用契约字段表示，两套协议各自使用。
 - 原生 Go 视图与 wire JSON 的表示可能不同。标准 `encoding/json` 无法输出原生 NaN、Infinity；需要传输这些值时使用 Value codec。
-- 数组和字符串映射解码失败保留旧集合；`StringsMap` 成功解码替换映射，并保留值为 null 的条目。
+- 包装标量和集合共用先解码、后替换的逻辑，失败保留旧值，null 清零或清空；映射成功解码替换全部键，`StringsMap` 保留值为 null 的条目。
+- `Values` 复用 `RegisterJSONValuesCodec`，集合在当前 iterator 上解码，嵌套错误直接向外传播。
 - 枚举接受已知名称和严格 JSON 整数；拒绝小数、指数、未知值及非法数字，null 清零。
 
 ## 时间与 SQL

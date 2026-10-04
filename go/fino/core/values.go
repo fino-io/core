@@ -44,10 +44,5 @@ func (x *Values) MarshalJSON() ([]byte, error) {
 }
 
 func (x *Values) UnmarshalJSON(b []byte) error {
-	var values []*Value
-	if err := jsoniter.Unmarshal(b, &values); err != nil {
-		return err
-	}
-	x.Vals = values
-	return nil
+	return decodeJSON(b, &x.Vals)
 }

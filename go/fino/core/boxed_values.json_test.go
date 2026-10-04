@@ -47,3 +47,12 @@ func TestValuesCodecNilDestination(t *testing.T) {
 	require.NotPanics(t, func() { codec.Decode(unsafe.Pointer(&values), iter) })
 	require.Error(t, iter.Error)
 }
+
+func TestValuesCodecNilMessage(t *testing.T) {
+	codec := &ValsCodec[int, codecIntValues]{GetVals: func(x *codecIntValues) *[]int { return &x.Vals }}
+	require.True(t, codec.IsEmpty(nil))
+	stream := jsoniter.NewStream(jsoniter.ConfigFastest, nil, 16)
+	codec.Encode(nil, stream)
+	require.NoError(t, stream.Error)
+	require.Equal(t, `null`, string(stream.Buffer()))
+}

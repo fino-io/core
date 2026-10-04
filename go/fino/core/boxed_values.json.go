@@ -35,12 +35,19 @@ func (codec *ValsCodec[T, M]) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 }
 
 func (codec *ValsCodec[T, M]) IsEmpty(ptr unsafe.Pointer) bool {
+	if ptr == nil {
+		return true
+	}
 	msg := (*M)(ptr)
 	vals := codec.GetVals(msg)
 	return vals == nil || len(*vals) == 0
 }
 
 func (codec *ValsCodec[T, M]) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
+	if ptr == nil {
+		stream.WriteNil()
+		return
+	}
 	msg := (*M)(ptr)
 	vals := codec.GetVals(msg)
 	stream.WriteVal(vals)

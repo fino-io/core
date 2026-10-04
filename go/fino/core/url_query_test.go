@@ -62,6 +62,55 @@ func TestNewUrlQueryFrom(t *testing.T) {
 	}
 }
 
+func TestQueryFromURLValuesReplacesAndCopies(t *testing.T) {
+	query := newTestQuery(t, "old", "value")
+	source := url.Values{"new": {"value"}, "empty": {}}
+	require.Same(t, query, query.FromUrlValues(source))
+	require.False(t, query.Has("old"))
+	source["new"][0] = "changed"
+	require.Equal(t, []string{"value"}, query.Vals["new"].Vals)
+	require.NotNil(t, query.Vals["empty"].Vals)
+	query.FromUrlValues(nil)
+	require.Empty(t, query.Vals)
+}
+
+type queryParserValue struct{ text string }
+
+func (x *queryParserValue) Parse(value string) error {
+	x.text = value
+	return nil
+}
+
+type queryStringValue struct{ text string }
+
+func (x *queryStringValue) ToString() string { return x.text }
+
+func TestQueryParserAndValueLists(t *testing.T) {
+	var custom queryParserValue
+	require.NoError(t, UnmarshalParam("raw text", &custom))
+	require.Equal(t, "raw text", custom.text)
+	var code ErrorCode
+	require.NoError(t, UnmarshalParam("404", &code))
+	require.Equal(t, int32(404), code.Code)
+	query := newTestQuery(t, "months", []Month{Month_MONTH_JANUARY, Month_MONTH_FEBRUARY})
+	var months []Month
+	require.NoError(t, query.Unmarshal("months", &months))
+	require.Equal(t, []Month{Month_MONTH_JANUARY, Month_MONTH_FEBRUARY}, months)
+	var timestamps []Timestamp
+	require.NoError(t, UnmarshalParam(TimestampString1+","+TimestampString2, &timestamps))
+	require.Equal(t, []Timestamp{{Seconds: Timestamp1}, {Seconds: Timestamp1 + 60}}, timestamps)
+}
+
+func TestQueryTypedNilFormatter(t *testing.T) {
+	var value *queryStringValue
+	query := &Url_Query{}
+	require.NotPanics(t, func() {
+		require.NoError(t, query.Set("empty", value))
+		require.Empty(t, ToString(value))
+	})
+	require.Empty(t, query.Vals["empty"].Vals)
+}
+
 type MyToStringStruct struct{}
 
 func (x *MyToStringStruct) ToString() string {

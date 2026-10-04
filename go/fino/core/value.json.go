@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -32,11 +31,7 @@ func init() {
 
 type ValueCodec struct{}
 
-func NewValueCodec() *ValueCodec {
-	return &ValueCodec{}
-}
-
-func (codec *ValueCodec) DecodeAny(a jsoniter.Any) (*Value, error) {
+func decodeScalarValue(a jsoniter.Any) (*Value, error) {
 	if err := a.LastError(); err != nil {
 		return nil, err
 	}
@@ -70,20 +65,8 @@ func (codec *ValueCodec) DecodeAny(a jsoniter.Any) (*Value, error) {
 		default:
 			return NewStringValue(str), nil
 		}
-	case jsoniter.ObjectValue:
-		val := make(map[string]*Value)
-		if err := jsoniter.UnmarshalFromString(a.ToString(), &val); err != nil {
-			return nil, err
-		}
-		return NewMapValue(val), nil
-	case jsoniter.ArrayValue:
-		val := make([]*Value, 0)
-		if err := jsoniter.UnmarshalFromString(a.ToString(), &val); err != nil {
-			return nil, err
-		}
-		return NewArrayValue(val...), nil
 	default:
-		return nil, errors.New("type is invalid")
+		return nil, fmt.Errorf("expected JSON scalar")
 	}
 }
 
@@ -127,7 +110,7 @@ func (codec *ValueCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 	if iter.Error != nil && iter.Error != io.EOF {
 		return
 	}
-	v, err := codec.DecodeAny(a)
+	v, err := decodeScalarValue(a)
 	if err != nil {
 		iter.ReportError("ValueCodec.Decode", err.Error())
 		return

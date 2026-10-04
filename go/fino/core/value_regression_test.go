@@ -36,8 +36,9 @@ func TestNewValueCompositeAndNil(t *testing.T) {
 func TestValueCodecInvalidInput(t *testing.T) {
 	for _, input := range []string{`"b64.!"`, `{"nested":"b64.!"}`, `["b64.!"]`, `1e999`, `{"nested":`} {
 		t.Run(input, func(t *testing.T) {
-			var value Value
-			require.Error(t, jsoniter.UnmarshalFromString(input, &value))
+			value := NewStringValue("original")
+			require.Error(t, jsoniter.UnmarshalFromString(input, value))
+			require.Equal(t, "original", value.GetString())
 		})
 	}
 }

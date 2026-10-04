@@ -19,7 +19,7 @@ func NewUrlQuery(kvs ...any) (*Url_Query, error) {
 		Vals: make(map[string]*StringValues),
 	}
 
-	for i := 0; i < len(kvs)-1; i += 2 {
+	for i := 0; i < len(kvs); i += 2 {
 		key, ok := kvs[i].(string)
 		if !ok {
 			return nil, fmt.Errorf("query key must be a string: %T", kvs[i])
@@ -32,18 +32,13 @@ func NewUrlQuery(kvs ...any) (*Url_Query, error) {
 }
 
 func NewUrlQueryFrom(values url.Values) *Url_Query {
-	query := &Url_Query{
-		Vals: make(map[string]*StringValues),
-	}
-	return query.FromUrlValues(values)
+	return (&Url_Query{}).FromUrlValues(values)
 }
 
+// FromUrlValues replaces the query with an independent copy of values.
 func (x *Url_Query) FromUrlValues(values url.Values) *Url_Query {
 	if x != nil {
-		if x.Vals == nil {
-			x.Vals = make(map[string]*StringValues)
-		}
-
+		x.Vals = make(map[string]*StringValues, len(values))
 		for k, v := range values {
 			x.Vals[k] = &StringValues{Vals: slices.Clone(v)}
 		}
@@ -103,20 +98,17 @@ func (x *Url_Query) Del(k string) *Url_Query {
 }
 
 func queryValueFormat(val any) ([]string, error) {
-	if val == nil {
+	v := reflect.ValueOf(val)
+	if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
 		return nil, nil
 	}
-	switch v := val.(type) {
-	case []string:
-		return slices.Clone(v), nil
-	case ToStringConverter, Formatter:
-		return []string{ToString(val)}, nil
+	if values, ok := val.([]string); ok {
+		return slices.Clone(values), nil
 	}
-	v := reflect.ValueOf(val)
+	if text, ok := formatScalar(val); ok {
+		return []string{text}, nil
+	}
 	switch v.Kind() {
-	case reflect.Bool, reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-		return []string{ToString(val)}, nil
 	case reflect.Slice, reflect.Array:
 		values := make([]string, 0, v.Len())
 		for i := 0; i < v.Len(); i++ {
@@ -157,16 +149,16 @@ func (x *Url_Query) Unmarshal(name string, value any) error {
 		return err
 	}
 	if (v.Kind() != reflect.Slice && v.Kind() != reflect.Array) || len(param.Vals) == 1 {
-		return UnmarshalParam(param.Vals[0], value)
+		return unmarshalParam(param.Vals[0], value, v)
 	}
 	if isStringParamType(v.Type().Elem()) {
 		data, err := json.Marshal(param.Vals)
 		if err != nil {
 			return err
 		}
-		return UnmarshalParam(string(data), value)
+		return unmarshalParam(string(data), value, v)
 	}
-	return UnmarshalParam("["+strings.Join(param.Vals, ",")+"]", value)
+	return unmarshalParam("["+strings.Join(param.Vals, ",")+"]", value, v)
 }
 
 func UnmarshalParam(str string, value any) error {
@@ -174,8 +166,15 @@ func UnmarshalParam(str string, value any) error {
 	if err != nil {
 		return err
 	}
+	return unmarshalParam(str, value, v)
+}
+
+func unmarshalParam(str string, value any, v reflect.Value) error {
 	if len(str) == 0 {
 		return nil
+	}
+	if parser, ok := value.(Parser); ok {
+		return parser.Parse(str)
 	}
 
 	switch v.Kind() {
@@ -198,10 +197,9 @@ func UnmarshalParam(str string, value any) error {
 		}
 		return jsoniter.Unmarshal([]byte(str), value)
 	default:
-		if reflect.PointerTo(v.Type()).Implements(reflect.TypeFor[StringLike]()) {
+		if isStringParamType(v.Type()) {
 			str = QuoteString(str)
 		}
-
 		err := jsoniter.ConfigFastest.Unmarshal([]byte(str), value)
 		if err != nil {
 			return fmt.Errorf("couldn't decode value from %v, error: %w", str, err)
@@ -235,5 +233,6 @@ func splitQuotedString(str string) []string {
 
 func isStringParamType(t reflect.Type) bool {
 	return t.Kind() == reflect.String ||
-		(t.Kind() == reflect.Ptr && reflect.PointerTo(t.Elem()).Implements(reflect.TypeFor[StringLike]()))
+		t.Implements(reflect.TypeFor[ToStringConverter]()) ||
+		reflect.PointerTo(t).Implements(reflect.TypeFor[ToStringConverter]())
 }
