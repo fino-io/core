@@ -8,6 +8,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
@@ -44,6 +45,9 @@ func decodeScalarValue(a jsoniter.Any) (*Value, error) {
 		return parseNumberValue(a.ToString())
 	case jsoniter.StringValue:
 		str := a.ToString()
+		if !utf8.ValidString(str) {
+			return nil, fmt.Errorf("invalid UTF-8 in string: %q", str)
+		}
 		if strings.HasPrefix(str, StringPrefix) {
 			return NewStringValue(strings.TrimPrefix(str, StringPrefix)), nil
 		}
@@ -92,8 +96,7 @@ func (codec *ValueCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 	// propagate without reparsing every enclosing object or array.
 	switch iter.WhatIsNext() {
 	case jsoniter.ObjectValue:
-		var values map[string]*Value
-		iter.ReadVal(&values)
+		values := readJSONObject(iter)
 		if iter.Error == nil {
 			(*Value)(ptr).Val = NewMapValue(values).Val
 		}
@@ -152,7 +155,11 @@ func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 			stream.WriteRaw(number)
 		}
 	case *Value_StringValue:
-		stream.WriteString(jsonString(v.StringValue))
+		if !utf8.ValidString(v.StringValue) {
+			stream.Error = fmt.Errorf("invalid UTF-8 in string: %q", v.StringValue)
+			return
+		}
+		stream.WriteVal(jsonString(v.StringValue))
 	case *Value_BytesValue:
 		stream.WriteString(Base64Prefix + base64.StdEncoding.EncodeToString(v.BytesValue))
 	case *Value_ValuesValue:

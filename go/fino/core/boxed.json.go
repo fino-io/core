@@ -2,16 +2,29 @@ package core
 
 import jsoniter "github.com/json-iterator/go"
 
-// decodeJSON replaces a field only after the complete input has been decoded.
-func decodeJSON[T any](data []byte, destination *T) error {
-	var value T
-	if err := jsoniter.Unmarshal(data, &value); err != nil {
-		return err
-	}
-	*destination = value
-	return nil
+func init() {
+	registerJSONFieldCodec("core.BoolValue", func(x *BoolValue) *bool { return &x.Val })
+	registerJSONFieldCodec("core.BoolValues", func(x *BoolValues) *[]bool { return &x.Vals })
+	registerJSONFieldCodec("core.Int32Value", func(x *Int32Value) *int32 { return &x.Val })
+	registerJSONFieldCodec("core.Int64Value", func(x *Int64Value) *int64 { return &x.Val })
+	registerJSONFieldCodec("core.Uint32Value", func(x *Uint32Value) *uint32 { return &x.Val })
+	registerJSONFieldCodec("core.Uint64Value", func(x *Uint64Value) *uint64 { return &x.Val })
+	registerJSONFieldCodec("core.Float32Value", func(x *Float32Value) *float32 { return &x.Val })
+	registerJSONFieldCodec("core.Float64Value", func(x *Float64Value) *float64 { return &x.Val })
+	registerJSONFieldCodec("core.StringValue", func(x *StringValue) *string { return &x.Val })
+	registerJSONFieldCodec("core.BytesValue", func(x *BytesValue) *[]byte { return &x.Val })
+	registerJSONFieldCodec("core.Int32Values", func(x *Int32Values) *[]int32 { return &x.Vals })
+	registerJSONFieldCodec("core.Int64Values", func(x *Int64Values) *[]int64 { return &x.Vals })
+	registerJSONFieldCodec("core.Uint32Values", func(x *Uint32Values) *[]uint32 { return &x.Vals })
+	registerJSONFieldCodec("core.Uint64Values", func(x *Uint64Values) *[]uint64 { return &x.Vals })
+	registerJSONFieldCodec("core.Float32Values", func(x *Float32Values) *[]float32 { return &x.Vals })
+	registerJSONFieldCodec("core.Float64Values", func(x *Float64Values) *[]float64 { return &x.Vals })
+	registerJSONFieldCodec("core.StringValues", func(x *StringValues) *[]string { return &x.Vals })
+	registerJSONFieldCodec("core.StringMap", func(x *StringMap) *map[string]string { return &x.Vals })
+	registerJSONFieldCodec("core.StringsMap", func(x *StringsMap) *map[string]*StringValues { return &x.Vals })
 }
 
+// Standard JSON hooks encode the field directly; jsoniter uses registered codecs.
 func (x *BoolValue) MarshalJSON() ([]byte, error) {
 	return jsoniter.Marshal(x.Val)
 }
@@ -157,10 +170,9 @@ func (x *StringMap) UnmarshalJSON(data []byte) error {
 }
 
 func (x *StringsMap) MarshalJSON() ([]byte, error) {
-	if x == nil || x.Vals == nil {
+	if x == nil {
 		return []byte("null"), nil
 	}
-
 	return jsoniter.Marshal(x.Vals)
 }
 

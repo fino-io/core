@@ -24,6 +24,10 @@
 
 ### 数据行为
 
+- 普通 JSON 编解码直接使用 jsoniter 默认入口，移除额外全局配置；`Object.To` 保留完整浮点精度，动态数据转换中的数字通过 decoder 的 `UseNumber` 保留为 `json.Number`。
+- 包装类型直接在外层 iterator/stream 上编解码，HTML 转义和映射键排序遵循调用方配置。集合注册继续使用 `RegisterJSONValuesCodec`，独立的 `ValsCodec` 已移除。
+- Value 字符串与 Object 键在 JSON 编解码时拒绝非法 UTF-8，字段解码错误不替换原值。普通 JSON 输出遵循 jsoniter 默认 HTML 转义。
+- 动态数据转换复用标准库完整 JSON 校验，非法 RawMessage 返回错误，不再静默替换为 null。包装类型的标准 JSON 方法直接处理字段，尾随内容导致的解码错误保留原值。
 - `NewValue` 递归转换原生集合，保留字节、浮点和整数种类；映射键必须是字符串。结构体继续使用 JSON 标签和已注册的编码器。
 - nil 数组输出 `null`，显式空切片输出 `[]`；无参数调用 `New*ArrayValue()` 等同于 nil 数组。数组读取保留这一形态。
 - Value 浮点 JSON 保留小数点或指数，例如 `1.0`，避免解码成整数；普通保留字符串使用 `str.` 转义，二进制使用 `b64.`。

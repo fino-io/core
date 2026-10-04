@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+	"unicode/utf8"
 	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
@@ -13,6 +15,26 @@ func init() {
 
 type ObjectCodec struct{}
 
+func validateJSONKeys(values map[string]*Value) error {
+	for key := range values {
+		if !utf8.ValidString(key) {
+			return fmt.Errorf("invalid UTF-8 in object key: %q", key)
+		}
+	}
+	return nil
+}
+
+func readJSONObject(iter *jsoniter.Iterator) map[string]*Value {
+	var values map[string]*Value
+	iter.ReadVal(&values)
+	if iter.Error == nil {
+		if err := validateJSONKeys(values); err != nil {
+			iter.ReportError("readJSONObject", err.Error())
+		}
+	}
+	return values
+}
+
 func (codec *ObjectCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 	next := iter.WhatIsNext()
 	if next != jsoniter.ObjectValue && next != jsoniter.NilValue {
@@ -20,8 +42,7 @@ func (codec *ObjectCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 		return
 	}
 
-	var values map[string]*Value
-	iter.ReadVal(&values)
+	values := readJSONObject(iter)
 	if iter.Error == nil {
 		(*Object)(ptr).Vals = values
 	}
@@ -32,5 +53,10 @@ func (codec *ObjectCodec) IsEmpty(ptr unsafe.Pointer) bool {
 }
 
 func (codec *ObjectCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
-	stream.WriteVal((*Object)(ptr).GetVals())
+	values := (*Object)(ptr).GetVals()
+	if err := validateJSONKeys(values); err != nil {
+		stream.Error = err
+		return
+	}
+	stream.WriteVal(values)
 }

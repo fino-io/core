@@ -45,5 +45,5 @@ func (codec *DurationCodec) IsEmpty(ptr unsafe.Pointer) bool {
 
 func (codec *DurationCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	duration := (*Duration)(ptr)
-	stream.WriteString(duration.Format())
+	stream.WriteVal(duration.Format())
 }

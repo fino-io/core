@@ -57,5 +57,5 @@ func (codec *TimestampCodec) IsEmpty(ptr unsafe.Pointer) bool {
 }
 
 func (codec *TimestampCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
-	stream.WriteString((*Timestamp)(ptr).Format())
+	stream.WriteVal((*Timestamp)(ptr).Format())
 }

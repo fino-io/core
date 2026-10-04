@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -130,10 +129,8 @@ func newValue(val any, visiting map[valueVisit]bool) (*Value, error) {
 
 // valueFromJSON reads ordinary Go JSON without interpreting Value wire prefixes.
 func valueFromJSON(data []byte) (*Value, error) {
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
 	var value any
-	if err := decoder.Decode(&value); err != nil {
+	if err := readJSON(data, &value); err != nil {
 		return nil, err
 	}
 	return NewValue(value)

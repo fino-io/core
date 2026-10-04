@@ -202,12 +202,12 @@ func unmarshalParam(str string, value any, v reflect.Value) error {
 			}
 			str = "[" + str + "]"
 		}
-		return jsoniter.Unmarshal([]byte(str), value)
+		return jsoniter.UnmarshalFromString(str, value)
 	default:
 		if isStringParamType(v.Type()) {
 			str = QuoteString(str)
 		}
-		err := jsoniter.ConfigFastest.Unmarshal([]byte(str), value)
+		err := jsoniter.UnmarshalFromString(str, value)
 		if err != nil {
 			return fmt.Errorf("couldn't decode value from %v, error: %w", str, err)
 		}

@@ -152,6 +152,63 @@ func TestValueCodecInvalidInput(t *testing.T) {
 	}
 }
 
+func TestNewValueRejectsInvalidRawJSON(t *testing.T) {
+	for _, raw := range []string{`{"broken":`, `1 2`, `{"valid":1}junk`, `{"number":01}`, ""} {
+		input := struct {
+			Raw json.RawMessage `json:"raw"`
+		}{Raw: json.RawMessage(raw)}
+		value, err := NewValue(input)
+		require.Error(t, err, "%q", raw)
+		require.Nil(t, value)
+		object := NewObject().SetString("old", "kept")
+		require.Error(t, object.From(input), "%q", raw)
+		require.Equal(t, "kept", object.GetString("old"))
+	}
+	input := struct {
+		Raw json.RawMessage `json:"raw"`
+	}{Raw: json.RawMessage(`{"id":18446744073709551615,"text":"b64.literal"}`)}
+	value, err := NewValue(input)
+	require.NoError(t, err)
+	raw := value.GetObject().GetObject("raw")
+	require.Equal(t, uint64(math.MaxUint64), raw.GetUint64("id"))
+	require.Equal(t, "b64.literal", raw.GetString("text"))
+	input.Raw = nil
+	value, err = NewValue(input)
+	require.NoError(t, err)
+	require.Equal(t, ValueKind_VALUE_KIND_NULL, value.GetObject().GetValue("raw").GetKind())
+}
+
+func TestValueJSONRejectsInvalidUTF8(t *testing.T) {
+	for _, input := range []string{
+		"\"\xff\"", "\"str.\xff\"", "[\"\xff\"]",
+		"{\"key\":\"\xff\"}", "{\"\xff\":1}", "{\"nested\":{\"\xff\":1}}",
+	} {
+		for _, api := range []jsoniter.API{jsoniter.ConfigDefault, jsoniter.ConfigFastest, jsoniter.ConfigCompatibleWithStandardLibrary} {
+			value := NewStringValue("original")
+			require.ErrorContains(t, api.UnmarshalFromString(input, value), "invalid UTF-8")
+			require.Equal(t, "original", value.GetString())
+			if input[0] == '{' {
+				object := NewObject().SetString("original", "kept")
+				require.ErrorContains(t, api.UnmarshalFromString(input, object), "invalid UTF-8")
+				require.Equal(t, "kept", object.GetString("original"))
+			}
+		}
+	}
+	for _, value := range []any{
+		NewStringValue("\xff"), NewObject().SetString("\xff", "value"),
+		NewObject().SetString("key", "\xff"), NewArrayValue(NewStringValue("\xff")),
+	} {
+		_, err := jsoniter.Marshal(value)
+		require.ErrorContains(t, err, "invalid UTF-8")
+	}
+	valid := NewObject().SetString("名称", "中文😀").SetString("", "empty key")
+	data, err := jsoniter.Marshal(valid)
+	require.NoError(t, err)
+	var decoded Object
+	require.NoError(t, jsoniter.Unmarshal(data, &decoded))
+	require.True(t, proto.Equal(valid, &decoded))
+}
+
 func TestValueCodecRoundTrip(t *testing.T) {
 	for _, value := range []*Value{
 		NewFloat64Value(0), NewFloat64Value(1), NewFloat64Value(-1),

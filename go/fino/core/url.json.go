@@ -54,7 +54,7 @@ func (codec *UrlStringCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream)
 		stream.WriteNil()
 		return
 	}
-	stream.WriteString(url.Format())
+	stream.WriteVal(url.Format())
 }
 
 func (codec *UrlStringCodec) url(ptr unsafe.Pointer) *Url {

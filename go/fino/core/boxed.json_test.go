@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	jsoniter "github.com/json-iterator/go"
@@ -122,4 +124,72 @@ func TestStringMapJSONReplacesValue(t *testing.T) {
 	}
 	require.Error(t, values.UnmarshalJSON(nil))
 	require.Error(t, (&StringsMap{}).UnmarshalJSON(nil))
+}
+
+func TestJSONMethodsRejectTrailingInputWithoutChangingValue(t *testing.T) {
+	for _, tt := range []struct {
+		value json.Unmarshaler
+		input string
+	}{
+		{&BoolValue{Val: true}, `false true`},
+		{&Int32Value{Val: 9}, `1 2`},
+		{&StringValue{Val: "old"}, `"new" trailing`},
+		{&Int32Values{Vals: []int32{9}}, `[1] [2]`},
+		{&StringMap{Vals: map[string]string{"old": "kept"}}, `{"new":"value"} {}`},
+		{&StringsMap{Vals: map[string]*StringValues{"old": {Vals: []string{"kept"}}}}, `{"new":["value"]} {}`},
+		{&Values{Vals: []*Value{NewIntValue(9)}}, `[1] [2]`},
+	} {
+		before, err := json.Marshal(tt.value)
+		require.NoError(t, err)
+		require.Error(t, tt.value.UnmarshalJSON([]byte(tt.input)))
+		after, err := json.Marshal(tt.value)
+		require.NoError(t, err)
+		require.JSONEq(t, string(before), string(after), "%T", tt.value)
+	}
+}
+
+func TestJSONCodecsFollowOuterStringConfig(t *testing.T) {
+	url, err := ParseUrl("https://example.com/?a=1&b=2")
+	require.NoError(t, err)
+	for _, value := range []any{
+		&StringValue{Val: "<tag>&中文"},
+		&StringValues{Vals: []string{"<tag>&中文"}},
+		&StringMap{Vals: map[string]string{"<key>": "<tag>&中文"}},
+		&StringsMap{Vals: map[string]*StringValues{"<key>": {Vals: []string{"<tag>&中文"}}}},
+		NewStringValue("<tag>&中文"), url,
+	} {
+		for _, escape := range []bool{false, true} {
+			var buffer bytes.Buffer
+			encoder := jsoniter.NewEncoder(&buffer)
+			encoder.SetEscapeHTML(escape)
+			require.NoError(t, encoder.Encode(value))
+			if escape {
+				require.Contains(t, buffer.String(), `\u0026`, "%T", value)
+				require.NotContains(t, buffer.String(), "&", "%T", value)
+			} else {
+				require.Contains(t, buffer.String(), "&", "%T", value)
+				require.NotContains(t, buffer.String(), `\u0026`, "%T", value)
+			}
+		}
+	}
+}
+
+func TestBoxedJSONFollowsOuterMapOrder(t *testing.T) {
+	value := &StringsMap{Vals: map[string]*StringValues{
+		"z": {Vals: []string{"last"}}, "a": {Vals: []string{"first"}},
+	}}
+	for i := 0; i < 20; i++ {
+		data, err := jsoniter.ConfigCompatibleWithStandardLibrary.MarshalToString(value)
+		require.NoError(t, err)
+		require.Equal(t, `{"a":["first"],"z":["last"]}`, data)
+	}
+}
+
+func TestBoxedJSONStreamDecode(t *testing.T) {
+	integer := &Int64Value{Val: 9}
+	require.NoError(t, jsoniter.NewDecoder(strings.NewReader("9223372036854775807")).Decode(integer))
+	require.Equal(t, int64(9223372036854775807), integer.Val)
+	number := &Float64Value{Val: 9}
+	require.NoError(t, jsoniter.NewDecoder(strings.NewReader("1.23456789012345")).Decode(number))
+	require.Equal(t, 1.23456789012345, number.Val)
 }

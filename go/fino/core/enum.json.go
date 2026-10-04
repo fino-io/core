@@ -63,7 +63,7 @@ func (codec *enumCodec[T]) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 		stream.Error = fmt.Errorf("unknown enum value: %d", value)
 		return
 	}
-	stream.WriteString(name)
+	stream.WriteVal(name)
 }
 
 func (codec *enumCodec[T]) IsEmpty(ptr unsafe.Pointer) bool {

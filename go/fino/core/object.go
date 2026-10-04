@@ -91,12 +91,12 @@ func (x *Object) To(val any) error {
 		return fmt.Errorf("Object.To: expected a non-nil pointer, got %T", val)
 	}
 
-	marshal, err := jsoniter.ConfigFastest.Marshal(x.AsMap())
+	marshal, err := jsoniter.Marshal(x.AsMap())
 	if err != nil {
 		return err
 	}
 
-	return jsoniter.ConfigFastest.Unmarshal(marshal, val)
+	return readJSON(marshal, val)
 }
 
 // From replaces the object with a detached copy of the input.

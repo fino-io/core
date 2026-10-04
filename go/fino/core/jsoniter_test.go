@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type codecIntValues struct {
+type jsonIntValues struct {
 	Vals []int
 }
 
 func init() {
-	RegisterJSONValuesCodec[int, codecIntValues]("core.codecIntValues", func(x *codecIntValues) *[]int { return &x.Vals })
+	RegisterJSONValuesCodec("core.jsonIntValues", func(x *jsonIntValues) *[]int { return &x.Vals })
 }
 
-func TestRegisteredValuesCodec(t *testing.T) {
-	values := &codecIntValues{Vals: []int{9}}
+func TestRegisterJSONValuesCodec(t *testing.T) {
+	values := &jsonIntValues{Vals: []int{9}}
 	require.NoError(t, jsoniter.UnmarshalFromString(`[1,2]`, values))
 	require.Equal(t, []int{1, 2}, values.Vals)
 	data, err := jsoniter.MarshalToString(values)
@@ -30,28 +30,28 @@ func TestRegisteredValuesCodec(t *testing.T) {
 	require.Empty(t, values.Vals)
 }
 
-func TestRegisteredValuesCodecInvalidInput(t *testing.T) {
+func TestRegisterJSONValuesCodecRejectsInvalidInput(t *testing.T) {
 	for _, input := range []string{`true`, `{}`, `1`, `[1,"bad"]`, `[1,`, `nul`} {
 		t.Run(input, func(t *testing.T) {
-			values := &codecIntValues{Vals: []int{9}}
+			values := &jsonIntValues{Vals: []int{9}}
 			require.Error(t, jsoniter.UnmarshalFromString(input, values))
 			require.Equal(t, []int{9}, values.Vals)
 		})
 	}
 }
 
-func TestValuesCodecNilDestination(t *testing.T) {
-	codec := &ValsCodec[int, codecIntValues]{GetVals: func(*codecIntValues) *[]int { return nil }}
-	iter := jsoniter.ParseString(jsoniter.ConfigFastest, `[1]`)
-	var values codecIntValues
+func TestJSONFieldCodecNilDestination(t *testing.T) {
+	codec := &jsonFieldCodec[[]int, jsonIntValues]{field: func(*jsonIntValues) *[]int { return nil }}
+	iter := jsoniter.ParseString(jsoniter.ConfigDefault, `[1]`)
+	var values jsonIntValues
 	require.NotPanics(t, func() { codec.Decode(unsafe.Pointer(&values), iter) })
 	require.Error(t, iter.Error)
 }
 
-func TestValuesCodecNilMessage(t *testing.T) {
-	codec := &ValsCodec[int, codecIntValues]{GetVals: func(x *codecIntValues) *[]int { return &x.Vals }}
+func TestJSONFieldCodecNilMessage(t *testing.T) {
+	codec := &jsonFieldCodec[[]int, jsonIntValues]{field: func(x *jsonIntValues) *[]int { return &x.Vals }}
 	require.True(t, codec.IsEmpty(nil))
-	stream := jsoniter.NewStream(jsoniter.ConfigFastest, nil, 16)
+	stream := jsoniter.NewStream(jsoniter.ConfigDefault, nil, 16)
 	codec.Encode(nil, stream)
 	require.NoError(t, stream.Error)
 	require.Equal(t, `null`, string(stream.Buffer()))

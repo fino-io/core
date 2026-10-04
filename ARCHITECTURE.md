@@ -59,6 +59,9 @@ flowchart LR
 
 JSON codec 的职责是保留数据类型的传输表示：
 
+- 普通 JSON 编解码直接使用 jsoniter 默认入口，保留完整浮点精度和默认 HTML 转义，不再维护额外的全局配置。`Object.To` 和结构体转 Value 的动态解码使用 decoder 的 `UseNumber`，将数字保留为 `json.Number`，避免整数精度损失。
+- 动态数据转换先用标准库 `json.Valid` 校验完整 JSON，非法 RawMessage 或自定义编码结果返回错误；不使用 jsoniter 会将非法 RawMessage 静默替换为 null 的校验选项。
+- `Value` 的字符串和 `Object` 的键在 JSON 编解码边界校验 UTF-8，嵌套非法数据返回错误。
 - nil 映射/切片输出 `null`，非 nil 空集合输出 `{}`/`[]`；深复制保留这一区别。
 - 二进制值输出 `"b64.<base64>"`，NaN 和无穷输出 `"NaN"`、`"Infinity"`、`"-Infinity"`。
 - 有限浮点使用完整精度，并保留小数点或指数；例如浮点 `1` 输出 `1.0`，整数输出 `1`，往返后仍可区分整数与浮点，也保留负零。
@@ -66,8 +69,9 @@ JSON codec 的职责是保留数据类型的传输表示：
 - `NewValue` 和 `Object.From` 处理普通 Go 输入时保留字符串原值，只有 Value wire codec 解释保留前缀。
 - 紧凑 JSON 使用 jsoniter codec；`protojson` 使用契约字段表示，两套协议各自使用。
 - 原生 Go 视图与 wire JSON 的表示可能不同。标准 `encoding/json` 无法输出原生 NaN、Infinity；需要传输这些值时使用 Value codec。
-- 包装标量和集合共用先解码、后替换的逻辑，失败保留旧值，null 清零或清空；映射成功解码替换全部键，`StringsMap` 保留值为 null 的条目。
-- `Values` 复用 `RegisterJSONValuesCodec`，集合在当前 iterator 上解码，嵌套错误直接向外传播。
+- 包装标量、切片、映射和 `Values` 共用字段 codec，直接在外层 iterator/stream 上读写，继承外层的转义和键排序配置，避免中间 JSON 缓冲。字段解码失败保留旧值，null 清零或清空；映射成功解码替换全部键，`StringsMap` 保留值为 null 的条目。
+- 标准 `MarshalJSON` 方法直接编码内部字段，不依赖自身 codec 的注册优先级；`UnmarshalJSON` 通过 `decodeJSON` 解码到临时字段，完整输入解码成功后才替换原值，尾随内容导致的错误同样保留原值。
+- `RegisterJSONValuesCodec` 是集合注册入口；实现与其他包装类型统一在 `jsoniter.go`，不再使用独立的 `ValsCodec`。
 - 枚举接受已知名称和严格 JSON 整数；拒绝小数、指数、未知值及非法数字，null 清零。
 
 ## 时间与 SQL

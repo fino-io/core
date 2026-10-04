@@ -189,6 +189,22 @@ func TestObjectToJSONRoundTrip(t *testing.T) {
 	require.Error(t, object.To(1))
 }
 
+func TestObjectToPreservesNumericPrecision(t *testing.T) {
+	type payload struct {
+		Number float64 `json:"number"`
+		Max    uint64  `json:"max"`
+		Min    int64   `json:"min"`
+	}
+	for _, number := range []float64{1.23456789012345, math.MaxFloat64, math.SmallestNonzeroFloat64, math.Copysign(0, -1)} {
+		input := payload{Number: number, Max: math.MaxUint64, Min: math.MinInt64}
+		object := NewObject().SetFloat64("number", number).SetUint64("max", input.Max).SetInt64("min", input.Min)
+		var output payload
+		require.NoError(t, object.To(&output))
+		require.Equal(t, input, output)
+		require.Equal(t, math.Signbit(number), math.Signbit(output.Number))
+	}
+}
+
 func TestNewObject(t *testing.T) {
 	v := map[string]any{"name": "apple", "age": 20}
 	got, err := NewObjectFromMap(v)
