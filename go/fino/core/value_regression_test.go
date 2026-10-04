@@ -47,6 +47,8 @@ func TestValueCodecRoundTrip(t *testing.T) {
 		NewFloat64Value(1.23456789012345), NewFloat64Value(math.NaN()),
 		NewFloat64Value(math.Inf(1)), NewFloat64Value(math.Inf(-1)),
 		NewBytesValue([]byte("hello")), NewObjectValue(nil), NewValuesValue(nil), NewNullValue(),
+		NewObjectValue(&Object{}), NewValuesValue(&Values{}),
+		NewObjectValue(NewObject()), NewValuesValue(&Values{Vals: []*Value{}}),
 	} {
 		data, err := jsoniter.Marshal(value)
 		require.NoError(t, err)

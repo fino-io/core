@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -75,6 +76,9 @@ func (codec *ValueCodec) DecodeAny(a jsoniter.Any) (*Value, error) {
 }
 
 func parseNumberValue(raw string) (*Value, error) {
+	if !json.Valid([]byte(raw)) {
+		return nil, fmt.Errorf("invalid JSON number: %q", raw)
+	}
 	if value, err := strconv.ParseInt(raw, 10, 64); err == nil {
 		return NewInt64Value(value), nil
 	}

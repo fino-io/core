@@ -147,7 +147,7 @@ func (x *StringMap) UnmarshalJSON(data []byte) error {
 }
 
 func (x *StringsMap) MarshalJSON() ([]byte, error) {
-	if x == nil {
+	if x == nil || x.Vals == nil {
 		return []byte("null"), nil
 	}
 
@@ -169,6 +169,10 @@ func (x *StringsMap) UnmarshalJSON(data []byte) error {
 	tmp := make(map[string]*StringValues)
 	if err := jsoniter.Unmarshal(data, &tmp); err != nil {
 		return err
+	}
+	if tmp == nil {
+		x.Vals = nil
+		return nil
 	}
 
 	if x.Vals == nil {

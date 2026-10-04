@@ -14,6 +14,8 @@
 
 枚举的部分 `.fmt.go`、`.json.go` 也是生成文件，应以文件头的 `Code generated` 标记为准。时间和 URL 的同类文件是手写扩展，不能仅凭文件后缀判断。
 
+生成文件保留生成器的类型写法，包括 `interface{}`；手写代码使用 `any`。日常重构只修改手写扩展，生成文件随契约和模板重新生成。
+
 ```mermaid
 flowchart LR
   P[Protobuf 契约] --> G[生成的消息和描述符]
@@ -63,9 +65,11 @@ flowchart LR
 - `NewValue([]byte)` 沿用无前缀的 Base64 字符串行为；需要二进制类型时使用 `NewBytesValue`，其普通 JSON 表示为 `"b64.<base64>"`。
 - `NaN`、正负无穷在普通 JSON 中表示为 `"NaN"`、`"Infinity"`、`"-Infinity"`。编码不再主动截断浮点小数位。
 - `Value`、`Object` 和 `Values` 的紧凑表示由 jsoniter codec 提供。Protobuf 的 `protojson` 根据契约字段编码，两套表示不能互换。使用标准 `encoding/json` 导出动态对象时，可先调用 `AsInterface`/`AsMap`。
+- 集合的 nil 映射/切片表示 JSON `null`，非 nil 空集合表示 `{}`/`[]`，`AsMap`、`AsSlice` 与紧凑 JSON 保持一致。通用数组 codec 接受数组和 `null`，元素解码错误会返回调用方，失败时保留原切片。
 - `Object.From` 和 `NewObjectFrom` 使用 JSON 转换，字段名保留原名或 `json` 标签，零值仅按 `omitempty` 省略，成功后替换全部字段。`nil` 输入清空映射，失败时保留原对象；nil 接收者安全返回。转换出的嵌套值与源对象隔离，但 JSON 转换可能规范化数值类型并丢弃 Protobuf 未知字段；保留完整 Protobuf 数据应使用 `Clone`。
 - 数值 `Timestamp` 固定按 Unix 秒解码；日期字符串沿用 dateparse 的解析能力。`Timestamp.Format` 继续使用现有的毫秒输出格式。
 - SQL `NULL` 扫描到已有 `Timestamp`/`Duration` 时清空秒和纳秒；若业务需要区分 NULL 和零值，应由包含这些字段的可空模型表达。
+- `Duration` 的 JSON 数值与 SQL 秒数字符串优先按 int64 整数解析，保留整数边界精度；小数和指数形式按 float64 处理。超出秒字段范围或非有限输入返回错误并保留旧值。动态值、时间点和时长拒绝前导零、前导加号等非法 JSON 数字写法。
 - `Url.Parse` 在完成 URL 和查询参数校验后更新接收者，失败时保留原值。当前契约不包含 `Opaque`，因此 `mailto:user@example.com` 等非层次式 URL 返回明确错误。
 - `Options.SetValues` 和 `NewUrlQuery` 忽略非字符串键和尾部不完整的键值对。对 nil `Options` 写入时，需要保留方法返回的映射。
 - 日志字段按初始配置、派生 logger、上下文、单次调用的顺序覆盖。同名字段只输出一次。文件输出默认使用 JSON；输出同步由 Zap 的锁封装处理。
@@ -86,6 +90,9 @@ flowchart LR
 | 日志字段写入两遍、各级别重复分派、文件默认编码不一致 | 字段统一合并，通过 Zap 的 `Logger.Log` 写入并保留调用位置。 |
 | 日志 `NewErrorf` 重复格式化，`%w` 导致日志出现格式错误 | 只调用一次 `fmt.Errorf`，日志使用返回错误的 `Error()` 文本，保留错误链。 |
 | 目录创建把已有文件当成功 | 直接调用 `os.MkdirAll`，由标准库检查类型并返回错误。 |
+| 通用数组和备用结构体 codec 吞掉元素/字段错误，部分 `null` 解码留下旧值 | 集合直接在当前 iterator 上解码并校验类型；数组失败保留旧值，URL、错误码及字符串集合显式处理 `null`。 |
+| URL 字符串读取失败后仍调用解析，覆盖原对象 | 读取成功后才解析 URL，失败时不修改已有 URL，也不向指针字段写入新对象。 |
+| 时长整数经 float64 转换损失精度，有限但越界的秒数被接受 | JSON 和 SQL 共用整数优先解析及浮点范围检查。 |
 
 这次调整复用已有 jsoniter、Zap、Protobuf 和 Go 标准库，没有引入新运行时依赖，也未修改契约或生成的描述符。
 
@@ -112,4 +119,4 @@ make -C go test
 make -C go vet
 ```
 
-回归用例覆盖错误链与 HTTP 状态、整数边界、嵌套 JSON 错误、特殊浮点、对象转换的字段/零值/替换/null 语义与自定义 codec、转换失败不变性、对象深复制、查询解码不变性、URL 用户信息、SQL NULL、纳秒进位、日志字段覆盖和调用位置。日志级别服务的集成测试需要允许监听本机回环地址。
+回归用例覆盖错误链与 HTTP 状态、整数边界、嵌套 JSON 错误、非法数字语法、特殊浮点、对象转换的字段/零值/替换/null 语义与自定义 codec、转换失败不变性、集合空值表示与通用数组 codec、备用结构体 codec、对象深复制、查询解码不变性、URL 用户信息、SQL NULL、时长越界、纳秒进位、日志字段覆盖和调用位置。日志级别服务的集成测试需要允许监听本机回环地址。

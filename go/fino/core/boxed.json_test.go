@@ -5,6 +5,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBoolValue_JSON(t *testing.T) {
@@ -46,4 +47,18 @@ func TestStringsMap_JSON(t *testing.T) {
 	err = jsoniter.UnmarshalFromString(s, val2)
 	assert.NoError(t, err)
 	assert.EqualValues(t, sv, val2.Vals["foo"])
+}
+
+func TestStringsMapNull(t *testing.T) {
+	values := &StringsMap{Vals: map[string]*StringValues{"old": {Vals: []string{"stale"}}}}
+	require.NoError(t, jsoniter.UnmarshalFromString(`null`, values))
+	require.Nil(t, values.Vals)
+	data, err := jsoniter.MarshalToString(values)
+	require.NoError(t, err)
+	require.Equal(t, `null`, data)
+	require.NoError(t, jsoniter.UnmarshalFromString(`{}`, values))
+	require.NotNil(t, values.Vals)
+	data, err = jsoniter.MarshalToString(values)
+	require.NoError(t, err)
+	require.Equal(t, `{}`, data)
 }

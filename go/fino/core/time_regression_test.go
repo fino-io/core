@@ -2,6 +2,7 @@ package core
 
 import (
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -66,4 +67,36 @@ func TestTimeJSONDecodeValidation(t *testing.T) {
 	}
 	require.NoError(t, jsoniter.UnmarshalFromString(`null`, duration))
 	require.Zero(t, duration.ToSeconds())
+}
+
+func TestDurationRejectsOverflow(t *testing.T) {
+	for _, input := range []string{`1e30`, `-1e30`, `9223372036854775808`, `-9223372036854775809`} {
+		t.Run(input, func(t *testing.T) {
+			duration := NewDuration(2.5)
+			require.Error(t, jsoniter.UnmarshalFromString(input, duration))
+			require.Equal(t, 2.5, duration.ToSeconds())
+			require.Error(t, duration.Scan(input))
+			require.Equal(t, 2.5, duration.ToSeconds())
+		})
+	}
+	for _, input := range []float64{math.NaN(), math.Inf(1), math.Inf(-1), 1e30, -1e30} {
+		duration := NewDuration(2.5)
+		require.Error(t, duration.Scan(input))
+		require.Equal(t, 2.5, duration.ToSeconds())
+	}
+}
+
+func TestDurationIntegerPrecision(t *testing.T) {
+	for _, input := range []string{`9223372036854775807`, `-9223372036854775808`} {
+		t.Run(input, func(t *testing.T) {
+			want, err := strconv.ParseInt(input, 10, 64)
+			require.NoError(t, err)
+			duration := NewDuration(2.5)
+			require.NoError(t, jsoniter.UnmarshalFromString(input, duration))
+			require.Equal(t, want, duration.Seconds)
+			require.Zero(t, duration.Nanoseconds)
+			require.NoError(t, duration.Scan(input))
+			require.Equal(t, want, duration.Seconds)
+		})
+	}
 }

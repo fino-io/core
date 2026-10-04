@@ -1,8 +1,8 @@
 package core
 
 import (
-	"math"
-	"strconv"
+	"encoding/json"
+	"io"
 	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
@@ -18,14 +18,18 @@ type DurationCodec struct {
 
 func (codec *DurationCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 	a := iter.ReadAny()
+	if iter.Error != nil && iter.Error != io.EOF {
+		return
+	}
 	duration := (*Duration)(ptr)
 	if a.ValueType() == jsoniter.NumberValue {
-		number, err := strconv.ParseFloat(a.ToString(), 64)
-		if err != nil || math.IsNaN(number) || math.IsInf(number, 0) {
-			iter.ReportError("Decode Duration", "invalid seconds")
+		if !json.Valid([]byte(a.ToString())) {
+			iter.ReportError("Decode Duration", "invalid JSON number")
 			return
 		}
-		duration.FromSeconds(number)
+		if err := duration.parseSeconds(a.ToString()); err != nil {
+			iter.ReportError("Decode Duration", err.Error())
+		}
 	} else if a.ValueType() == jsoniter.StringValue {
 		str := a.ToString()
 		err := duration.Parse(str)

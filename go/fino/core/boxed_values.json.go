@@ -6,10 +6,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-// func init() {
-// 	RegisterJSONValuesCodec[bool, BoolValues]("core.BoolValues", func(b *BoolValues) *[]bool { return &b.Vals })
-// }
-
 func RegisterJSONValuesCodec[T any, M any](typ string, fn func(*M) *[]T) {
 	codec := &ValsCodec[T, M]{GetVals: fn}
 	RegisterJSONTypeDecoder(typ, codec)
@@ -21,11 +17,20 @@ type ValsCodec[T any, M any] struct {
 }
 
 func (codec *ValsCodec[T, M]) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-	msg := (*M)(ptr)
-	vals := codec.GetVals(msg)
-	a := iter.ReadAny()
-	if a.ValueType() == jsoniter.ArrayValue {
-		a.ToVal(&vals)
+	next := iter.WhatIsNext()
+	if next != jsoniter.ArrayValue && next != jsoniter.NilValue {
+		iter.ReportError("ValsCodec.Decode", "expected JSON array")
+		return
+	}
+	destination := codec.GetVals((*M)(ptr))
+	if destination == nil {
+		iter.ReportError("ValsCodec.Decode", "nil slice destination")
+		return
+	}
+	var values []T
+	iter.ReadVal(&values)
+	if iter.Error == nil {
+		*destination = values
 	}
 }
 

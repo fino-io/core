@@ -1,6 +1,8 @@
 package core
 
 import (
+	"encoding/json"
+	"io"
 	"strconv"
 	"unsafe"
 
@@ -22,8 +24,15 @@ type TimestampCodec struct {
 
 func (codec *TimestampCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 	a := iter.ReadAny()
+	if iter.Error != nil && iter.Error != io.EOF {
+		return
+	}
 	ts := (*Timestamp)(ptr)
 	if a.ValueType() == jsoniter.NumberValue {
+		if !json.Valid([]byte(a.ToString())) {
+			iter.ReportError("Decode Timestamp", "invalid JSON number")
+			return
+		}
 		// Numeric timestamps are Unix seconds, independent of platform int size.
 		number, err := strconv.ParseInt(a.ToString(), 10, 64)
 		if err != nil {

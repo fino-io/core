@@ -50,9 +50,6 @@ func NewValue(val any) (*Value, error) {
 	case float64:
 		return NewFloat64Value(v), nil
 	case json.Number:
-		if !json.Valid([]byte(v)) {
-			return nil, fmt.Errorf("invalid JSON number: %q", v)
-		}
 		return parseNumberValue(string(v))
 	case *Value:
 		if v == nil {
@@ -347,12 +344,12 @@ func (x *Value) AsInterface() any {
 	case *Value_BytesValue:
 		return Base64Prefix + base64.StdEncoding.EncodeToString(v.BytesValue)
 	case *Value_ObjectValue:
-		if v.ObjectValue == nil {
+		if v.ObjectValue.GetVals() == nil {
 			return nil
 		}
 		return v.ObjectValue.AsMap()
 	case *Value_ValuesValue:
-		if v.ValuesValue == nil {
+		if v.ValuesValue.GetVals() == nil {
 			return nil
 		}
 		return v.ValuesValue.AsSlice()

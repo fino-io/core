@@ -2,7 +2,10 @@ package core
 
 import (
 	"cmp"
+	"errors"
+	"fmt"
 	"math"
+	"strconv"
 	"time"
 )
 
@@ -27,6 +30,8 @@ func (x *Duration) FromDuration(d time.Duration) *Duration {
 	return x
 }
 
+// FromSeconds sets a finite, representable number of seconds.
+// Use Scan when accepting external input that needs validation.
 func (x *Duration) FromSeconds(sec float64) *Duration {
 	if x != nil {
 		x.Seconds = int64(sec)
@@ -38,6 +43,32 @@ func (x *Duration) FromSeconds(sec float64) *Duration {
 		}
 	}
 	return x
+}
+
+func (x *Duration) setSeconds(seconds float64) error {
+	// The upper bound is exclusive: float64 rounds MaxInt64 up to 2^63.
+	// These comparisons also reject NaN and infinities.
+	if !(seconds >= math.MinInt64 && seconds < -float64(math.MinInt64)) {
+		return fmt.Errorf("duration seconds out of range: %v", seconds)
+	}
+	x.FromSeconds(seconds)
+	return nil
+}
+
+func (x *Duration) parseSeconds(value string) error {
+	seconds, err := strconv.ParseInt(value, 10, 64)
+	if err == nil {
+		x.Seconds, x.Nanoseconds = seconds, 0
+		return nil
+	}
+	if errors.Is(err, strconv.ErrRange) {
+		return err
+	}
+	number, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return err
+	}
+	return x.setSeconds(number)
 }
 
 func (x *Duration) ToDuration() time.Duration {

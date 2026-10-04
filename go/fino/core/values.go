@@ -22,7 +22,7 @@ func NewValues(v []any) (*Values, error) {
 // AsSlice converts x to a general-purpose Go slice.
 // The slice elements are converted by calling Value.AsInterface.
 func (x *Values) AsSlice() []any {
-	if x == nil {
+	if x == nil || x.Vals == nil {
 		return nil
 	}
 	vals := x.GetVals()

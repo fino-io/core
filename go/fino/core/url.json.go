@@ -16,30 +16,44 @@ type UrlStringCodec struct {
 }
 
 func (codec *UrlStringCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
+	if iter.ReadNil() {
+		if iter.Error == nil {
+			if codec.isFieldPointer {
+				*(**Url)(ptr) = nil
+			} else {
+				(*Url)(ptr).Reset()
+			}
+		}
+		return
+	}
+	s := iter.ReadString()
+	if iter.Error != nil {
+		return
+	}
 	url := codec.url(ptr)
 	if url == nil {
 		url = &Url{}
-		*(**Url)(ptr) = url
 	}
 
-	if err := url.Parse(iter.ReadString()); err != nil {
+	if err := url.Parse(s); err != nil {
 		iter.ReportError(UrlTypeFullName, err.Error())
+		return
+	}
+	if codec.isFieldPointer {
+		*(**Url)(ptr) = url
 	}
 }
 
 func (codec *UrlStringCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	url := codec.url(ptr)
-	if url != nil {
-		if checker, ok := any(url).(EmptyChecker); ok {
-			return checker.IsEmpty()
-		}
-		return false
-	}
-	return true
+	return codec.url(ptr) == nil
 }
 
 func (codec *UrlStringCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	url := codec.url(ptr)
+	if url == nil {
+		stream.WriteNil()
+		return
+	}
 	stream.WriteString(url.Format())
 }
 
@@ -58,26 +72,32 @@ type UrlStructCodec struct {
 }
 
 func (codec *UrlStructCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-	url := codec.bareUrl(ptr)
-	a := iter.ReadAny()
-	if a.ValueType() == jsoniter.ObjectValue {
-		if url == nil {
-			url = &BareUrl{}
-			*(**BareUrl)(ptr) = url
+	if iter.ReadNil() {
+		if iter.Error == nil {
+			if codec.isFieldPointer {
+				*(**Url)(ptr) = nil
+			} else {
+				(*Url)(ptr).Reset()
+			}
 		}
-		a.ToVal(url)
+		return
+	}
+	if iter.WhatIsNext() != jsoniter.ObjectValue {
+		iter.ReportError("UrlStructCodec.Decode", "expected JSON object")
+		return
+	}
+	url := codec.bareUrl(ptr)
+	if url == nil {
+		url = &BareUrl{}
+	}
+	iter.ReadVal(url)
+	if iter.Error == nil && codec.isFieldPointer {
+		*(**BareUrl)(ptr) = url
 	}
 }
 
 func (codec *UrlStructCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	url := (*Url)(codec.bareUrl(ptr))
-	if url != nil {
-		if checker, ok := any(url).(EmptyChecker); ok {
-			return checker.IsEmpty()
-		}
-		return false
-	}
-	return true
+	return codec.bareUrl(ptr) == nil
 }
 
 func (codec *UrlStructCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {

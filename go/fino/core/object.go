@@ -74,7 +74,7 @@ func MergeObjects(objs ...*Object) *Object {
 // The result is intended for JSON serialization or dynamic inspection,
 // not for round-trip binary fidelity.
 func (x *Object) AsMap() map[string]any {
-	if x == nil {
+	if x == nil || x.Vals == nil {
 		return nil
 	}
 

@@ -19,31 +19,44 @@ type ErrorCodeStringCodec struct {
 }
 
 func (codec *ErrorCodeStringCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
+	if iter.ReadNil() {
+		if iter.Error == nil {
+			if codec.IsFieldPointer {
+				*(**ErrorCode)(ptr) = nil
+			} else {
+				(*ErrorCode)(ptr).Reset()
+			}
+		}
+		return
+	}
 	s := iter.ReadString()
+	if iter.Error != nil {
+		return
+	}
 	errorCode := codec.errorCode(ptr)
 	if errorCode == nil {
 		errorCode = &ErrorCode{}
-		*(**ErrorCode)(ptr) = errorCode
 	}
 
 	if err := errorCode.Parse(s); err != nil {
 		iter.ReportError("ErrorCodeStringCodec", err.Error())
+		return
+	}
+	if codec.IsFieldPointer {
+		*(**ErrorCode)(ptr) = errorCode
 	}
 }
 
 func (codec *ErrorCodeStringCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	errorCode := codec.errorCode(ptr)
-	if errorCode != nil {
-		if checker, ok := any(errorCode).(EmptyChecker); ok {
-			return checker.IsEmpty()
-		}
-		return false
-	}
-	return true
+	return codec.errorCode(ptr) == nil
 }
 
 func (codec *ErrorCodeStringCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	errorCode := codec.errorCode(ptr)
+	if errorCode == nil {
+		stream.WriteNil()
+		return
+	}
 	stream.WriteString(errorCode.Format())
 }
 
@@ -59,25 +72,32 @@ type ErrorCodeStructCodec struct {
 }
 
 func (codec *ErrorCodeStructCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-	errorCode := codec.bareErrorCode(ptr)
-	if a := iter.ReadAny(); a.ValueType() == jsoniter.ObjectValue {
-		if errorCode == nil {
-			errorCode = &BareErrorCode{}
-			*(**BareErrorCode)(ptr) = errorCode
+	if iter.ReadNil() {
+		if iter.Error == nil {
+			if codec.IsFieldPointer {
+				*(**ErrorCode)(ptr) = nil
+			} else {
+				(*ErrorCode)(ptr).Reset()
+			}
 		}
-		a.ToVal(errorCode)
+		return
+	}
+	if iter.WhatIsNext() != jsoniter.ObjectValue {
+		iter.ReportError("ErrorCodeStructCodec.Decode", "expected JSON object")
+		return
+	}
+	errorCode := codec.bareErrorCode(ptr)
+	if errorCode == nil {
+		errorCode = &BareErrorCode{}
+	}
+	iter.ReadVal(errorCode)
+	if iter.Error == nil && codec.IsFieldPointer {
+		*(**BareErrorCode)(ptr) = errorCode
 	}
 }
 
 func (codec *ErrorCodeStructCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	errorCode := (*ErrorCode)(codec.bareErrorCode(ptr))
-	if errorCode != nil {
-		if checker, ok := any(errorCode).(EmptyChecker); ok {
-			return checker.IsEmpty()
-		}
-		return false
-	}
-	return true
+	return codec.bareErrorCode(ptr) == nil
 }
 
 func (codec *ErrorCodeStructCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
