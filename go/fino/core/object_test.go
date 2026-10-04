@@ -120,8 +120,9 @@ func TestObjectFromFailureKeepsOriginal(t *testing.T) {
 				require.Error(t, convert(empty, tt.input))
 				require.Nil(t, empty.Vals)
 			}
-			_, err := NewObjectFrom(tt.input)
+			object, err := NewObjectFrom(tt.input)
 			require.Error(t, err)
+			require.Nil(t, object)
 		})
 	}
 	for _, convert := range []func(*Object, any) error{(*Object).From} {

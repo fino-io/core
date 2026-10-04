@@ -5,21 +5,14 @@ import jsoniter "github.com/json-iterator/go"
 const ValuesTypeName = "Values"
 const ValuesTypeFullName = "core.Values"
 
-// NewValues constructs a ListValue from a general-purpose Go slice.
+// NewValues constructs Values from a general-purpose Go slice.
 // The slice elements are converted using NewValue.
 func NewValues(v []any) (*Values, error) {
-	if v == nil {
-		return &Values{}, nil
+	value, err := NewValue(v)
+	if err != nil {
+		return nil, err
 	}
-	x := &Values{Vals: make([]*Value, len(v))}
-	for i, v := range v {
-		var err error
-		x.Vals[i], err = NewValue(v)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return x, nil
+	return value.GetValuesValue(), nil
 }
 
 // AsSlice converts x to a general-purpose Go slice.

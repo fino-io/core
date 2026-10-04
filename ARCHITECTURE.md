@@ -35,9 +35,11 @@ flowchart LR
 
 | 入口 | 语义 |
 | --- | --- |
-| `NewValue`、`New*Value` | 将 Go 数据包装成 Protobuf oneof；保留 int64/uint64 精度，字节切片保留二进制类型。结构体按 JSON 标签和注册的编码器转换。 |
+| `NewValue`、`New*Value` | 原生标量、字符串键映射和数组递归转换为 Protobuf oneof，保留整数精度、浮点种类和二进制数据；结构体按 JSON 标签和注册的编码器转换。 |
+| `NewObjectFromMap`、`NewValues` | 复用 `NewValue` 的转换与校验，不再单独递归构建集合。 |
+| `New*ArrayValue`、`Get*Array` | 共用元素映射逻辑，保留 nil/非 nil 空切片；原始元素统一通过 `Value.GetValues` 读取。 |
 | `Value.AsInterface`、`Object.AsMap`、`Values.AsSlice` | 返回原生 Go 值，包括原始字符串、字节切片和非有限浮点。 |
-| `Object.From`、`NewObjectFrom` | 转换并深复制对象内容；成功替换全部字段，null 清空，错误保留旧值。 |
+| `Object.From`、`NewObjectFrom` | 转换并深复制对象内容；成功替换全部字段，null 清空，错误保留旧值；构造失败返回 nil 和错误。 |
 | `Object.To` | 按原生数据的 JSON 表示写入非 nil 指针；目标类型仍需能接受相应数据。 |
 | `Merge`、`Clone` | `Merge` 共享嵌套值，`Clone` 深复制并保留集合的 nil/empty 形态。 |
 | `ToLowerCamelKeys`、`ToSnakeKeys` | 返回转换后的新对象；键名冲突返回错误。 |
@@ -48,12 +50,15 @@ flowchart LR
 
 `From2` 已删除，转换统一使用 `From`。已有 `Object` 和值映射保留 oneof 类型；结构体中的数字由 JSON 表示决定。`Clone` 保留 Protobuf 未知字段，`From` 只替换目标对象的字段映射。
 
+原生集合不再经过 JSON 中转，因此 `map[string][]byte` 中的元素仍为二进制，`[]float64{1}` 的元素仍为浮点，命名类型和普通指针采用同一转换规则。映射键必须是字符串，字符串与键统一检查 UTF-8。转换检测原生映射、切片和指针的循环引用，正常共享子对象及重叠切片可以转换；错误包含字段名或元素下标。结构体的自定义编码仍由 jsoniter 处理。
+
 字符串转换统一使用 `ToStringConverter` 和 `Formatter`，`ToString` 与查询参数共享标量格式化逻辑；nil 指针不会调用格式化方法。重复的 `StringLike`、`ValuesCodec`、`NewValueCodec` 和 `ValueCodec.DecodeAny` 已移除。
 
 JSON codec 的职责是保留数据类型的传输表示：
 
 - nil 映射/切片输出 `null`，非 nil 空集合输出 `{}`/`[]`；深复制保留这一区别。
 - 二进制值输出 `"b64.<base64>"`，NaN 和无穷输出 `"NaN"`、`"Infinity"`、`"-Infinity"`。
+- 有限浮点使用完整精度，并保留小数点或指数；例如浮点 `1` 输出 `1.0`，整数输出 `1`，往返后仍可区分整数与浮点，也保留负零。
 - 普通字符串若与保留值冲突，或以 `str.` 开头，输出时加 `str.` 前缀；解码先移除这一层转义。因此字符串 `NaN` 和浮点 NaN 可以分别往返。
 - `NewValue` 和 `Object.From` 处理普通 Go 输入时保留字符串原值，只有 Value wire codec 解释保留前缀。
 - 紧凑 JSON 使用 jsoniter codec；`protojson` 使用契约字段表示，两套协议各自使用。

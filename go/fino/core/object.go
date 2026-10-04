@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
-	"unicode/utf8"
 
 	"github.com/fino-io/core/go/fino/core/strcase"
 	jsoniter "github.com/json-iterator/go"
@@ -22,21 +21,11 @@ func NewObject() *Object {
 // The map keys must be valid UTF-8.
 // The map values are converted using NewValue.
 func NewObjectFromMap(m map[string]any) (*Object, error) {
-	if m == nil {
-		return &Object{}, nil
+	value, err := NewValue(m)
+	if err != nil {
+		return nil, err
 	}
-	x := &Object{Vals: make(map[string]*Value, len(m))}
-	for k, v := range m {
-		if !utf8.ValidString(k) {
-			return nil, fmt.Errorf("invalid UTF-8 in object key: %q", k)
-		}
-		var err error
-		x.Vals[k], err = NewValue(v)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return x, nil
+	return value.GetObject(), nil
 }
 
 func NewObjectFromKeyVals(kvs ...any) (*Object, error) {
@@ -57,8 +46,11 @@ func NewObjectFromKeyVals(kvs ...any) (*Object, error) {
 }
 
 func NewObjectFrom(val any) (*Object, error) {
-	obj := NewObject()
-	return obj, obj.From(val)
+	obj := &Object{}
+	if err := obj.From(val); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
 
 func NewObjectFromValues(v map[string]*Value) *Object {
@@ -318,7 +310,7 @@ func (x *Object) GetObjectArray(key string) []*Object {
 }
 
 func (x *Object) GetValueArray(key string) []*Value {
-	return x.GetValue(key).GetValueArray()
+	return x.GetValue(key).GetValues()
 }
 
 // Merge copies entries from o. Nested values remain shared; use Clone to isolate them.

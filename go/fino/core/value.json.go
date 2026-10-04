@@ -145,7 +145,11 @@ func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 		case math.IsInf(v.NumberValue, -1):
 			stream.WriteString("-Infinity")
 		default:
-			stream.WriteFloat64(v.NumberValue)
+			number := strconv.FormatFloat(v.NumberValue, 'g', -1, 64)
+			if !strings.ContainsAny(number, ".eE") {
+				number += ".0"
+			}
+			stream.WriteRaw(number)
 		}
 	case *Value_StringValue:
 		stream.WriteString(jsonString(v.StringValue))

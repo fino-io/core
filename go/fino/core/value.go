@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"unicode/utf8"
+	"unsafe"
 
 	jsoniter "github.com/json-iterator/go"
 )
@@ -14,108 +15,116 @@ import (
 const ValueTypeName = "Value"
 const ValueTypeFullName = "core.Value"
 
-// NewValue converts Go scalars, maps, slices, arrays, and structs into Value.
-// Integers retain int64/uint64 precision; decimal JSON numbers use float64.
-// Structs and typed collections use jsoniter's registered codecs and JSON tags.
-// Nil pointers become null. Byte slices retain their binary kind.
+// NewValue converts Go scalars, string-keyed maps, slices, arrays, and structs.
+// Native collections preserve element kinds, integer precision, and binary data.
+// Structs use jsoniter's registered codecs and JSON tags. Nil pointers become null.
 func NewValue(val any) (*Value, error) {
-	switch v := val.(type) {
-	case nil:
+	return newValue(val, make(map[valueVisit]bool))
+}
+
+type valueVisit struct {
+	typ    reflect.Type
+	ptr    unsafe.Pointer
+	length int
+}
+
+func newValue(val any, visiting map[valueVisit]bool) (*Value, error) {
+	rv := reflect.ValueOf(val)
+	if !rv.IsValid() || (rv.Kind() == reflect.Ptr && rv.IsNil()) {
 		return NewNullValue(), nil
-	case bool:
-		return NewBoolValue(v), nil
-	case int:
-		return NewIntValue(v), nil
-	case int8:
-		return NewInt8Value(v), nil
-	case int16:
-		return NewInt16Value(v), nil
-	case int32:
-		return NewInt32Value(v), nil
-	case int64:
-		return NewInt64Value(v), nil
-	case uint:
-		return NewUintValue(v), nil
-	case uint8:
-		return NewUint8Value(v), nil
-	case uint16:
-		return NewUint16Value(v), nil
-	case uint32:
-		return NewUint32Value(v), nil
-	case uint64:
-		return NewUint64Value(v), nil
-	case float32:
-		return NewFloat32Value(v), nil
-	case float64:
-		return NewFloat64Value(v), nil
+	}
+	switch v := val.(type) {
 	case json.Number:
 		return parseNumberValue(string(v))
 	case *Value:
-		if v == nil {
-			return NewNullValue(), nil
-		}
 		return v, nil
 	case *Object:
-		if v == nil {
-			return NewNullValue(), nil
-		}
 		return NewObjectValue(v), nil
 	case *Values:
-		if v == nil {
-			return NewNullValue(), nil
-		}
 		return NewValuesValue(v), nil
-	case map[string]*Value:
-		return NewMapValue(v), nil
-	case []*Value:
-		return NewArrayValue(v...), nil
-	case string:
-		if !utf8.ValidString(v) {
-			return nil, fmt.Errorf("invalid UTF-8 in string: %q", v)
-		}
-		return NewStringValue(v), nil
-	case []byte:
-		return NewBytesValue(v), nil
-	case map[string]any:
-		v2, err := NewObjectFromMap(v)
-		if err != nil {
-			return nil, err
-		}
-		return NewObjectValue(v2), nil
-	case []any:
-		v2, err := NewValues(v)
-		if err != nil {
-			return nil, err
-		}
-		return NewValuesValue(v2), nil
-	default:
-		rv := reflect.ValueOf(val)
-		for rv.Kind() == reflect.Ptr {
-			if rv.IsNil() {
-				return NewNullValue(), nil
+	}
+
+	// Track the current recursion path; repeated references outside it are valid.
+	switch rv.Kind() {
+	case reflect.Map, reflect.Slice, reflect.Ptr:
+		if !rv.IsNil() {
+			visit := valueVisit{typ: rv.Type(), ptr: rv.UnsafePointer()}
+			if rv.Kind() == reflect.Slice {
+				visit.length = rv.Len()
 			}
-			rv = rv.Elem()
+			if visiting[visit] {
+				return nil, fmt.Errorf("cyclic value: %T", val)
+			}
+			visiting[visit] = true
+			defer delete(visiting, visit)
 		}
-		switch rv.Kind() {
-		case reflect.Struct, reflect.Map, reflect.Slice, reflect.Array:
-			data, err := jsoniter.Marshal(val)
+	}
+
+	switch rv.Kind() {
+	case reflect.Bool:
+		return NewBoolValue(rv.Bool()), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return NewInt64Value(rv.Int()), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return NewUint64Value(rv.Uint()), nil
+	case reflect.Float32, reflect.Float64:
+		return NewFloat64Value(rv.Float()), nil
+	case reflect.String:
+		text := rv.String()
+		if !utf8.ValidString(text) {
+			return nil, fmt.Errorf("invalid UTF-8 in string: %q", text)
+		}
+		return NewStringValue(text), nil
+	case reflect.Map:
+		if rv.Type().Key().Kind() != reflect.String {
+			return nil, fmt.Errorf("object keys must be strings: %T", val)
+		}
+		var values map[string]*Value
+		if !rv.IsNil() {
+			values = make(map[string]*Value, rv.Len())
+		}
+		entries := rv.MapRange()
+		for entries.Next() {
+			key := entries.Key().String()
+			if !utf8.ValidString(key) {
+				return nil, fmt.Errorf("invalid UTF-8 in object key: %q", key)
+			}
+			value, err := newValue(entries.Value().Interface(), visiting)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("object field %q: %w", key, err)
 			}
-			return valueFromJSON(data)
-		case reflect.Bool:
-			return NewBoolValue(rv.Bool()), nil
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			return NewInt64Value(rv.Int()), nil
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			return NewUint64Value(rv.Uint()), nil
-		case reflect.Float32, reflect.Float64:
-			return NewFloat64Value(rv.Float()), nil
-		case reflect.String:
-			return NewValue(rv.String())
-		default:
-			return nil, fmt.Errorf("invalid type: %T", v)
+			values[key] = value
 		}
+		return NewMapValue(values), nil
+	case reflect.Slice, reflect.Array:
+		if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {
+			return NewBytesValue(rv.Bytes()), nil
+		}
+		var values []*Value
+		if rv.Kind() == reflect.Array || !rv.IsNil() {
+			values = make([]*Value, rv.Len())
+		}
+		for i := 0; i < rv.Len(); i++ {
+			value, err := newValue(rv.Index(i).Interface(), visiting)
+			if err != nil {
+				return nil, fmt.Errorf("array element %d: %w", i, err)
+			}
+			values[i] = value
+		}
+		return NewArrayValue(values...), nil
+	case reflect.Ptr:
+		if rv.Elem().Kind() != reflect.Struct {
+			return newValue(rv.Elem().Interface(), visiting)
+		}
+		fallthrough
+	case reflect.Struct:
+		data, err := jsoniter.Marshal(val)
+		if err != nil {
+			return nil, err
+		}
+		return valueFromJSON(data)
+	default:
+		return nil, fmt.Errorf("invalid type: %T", val)
 	}
 }
 
@@ -240,84 +249,56 @@ func NewArrayValue(vals ...*Value) *Value {
 	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: vals}}}
 }
 
-func NewIntArrayValue(vals ...int) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewIntValue(v))
+// mapSlice preserves nil and empty slices while converting their elements.
+func mapSlice[T, R any](values []T, convert func(T) R) []R {
+	if values == nil {
+		return nil
 	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	result := make([]R, len(values))
+	for i, value := range values {
+		result[i] = convert(value)
+	}
+	return result
+}
+
+func NewIntArrayValue(vals ...int) *Value {
+	return NewArrayValue(mapSlice(vals, NewIntValue)...)
 }
 
 func NewInt32ArrayValue(vals ...int32) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewInt32Value(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewInt32Value)...)
 }
 
 func NewInt64ArrayValue(vals ...int64) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewInt64Value(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewInt64Value)...)
 }
 
 func NewUintArrayValue(vals ...uint) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewUintValue(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewUintValue)...)
 }
 
 func NewUint32ArrayValue(vals ...uint32) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewUint32Value(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewUint32Value)...)
 }
 
 func NewUint64ArrayValue(vals ...uint64) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewUint64Value(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewUint64Value)...)
 }
 
 func NewFloat32ArrayValue(vals ...float32) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewFloat32Value(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewFloat32Value)...)
 }
 
 func NewFloat64ArrayValue(vals ...float64) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewFloat64Value(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewFloat64Value)...)
 }
 
 func NewStringArrayValue(vals ...string) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewStringValue(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewStringValue)...)
 }
 
 func NewObjectArrayValue(vals ...*Object) *Value {
-	_vals := make([]*Value, 0, len(vals))
-	for _, v := range vals {
-		_vals = append(_vals, NewObjectValue(v))
-	}
-	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
+	return NewArrayValue(mapSlice(vals, NewObjectValue)...)
 }
 
 // AsInterface returns native Go values, including []byte and non-finite floats.
@@ -471,73 +452,29 @@ func (x *Value) GetValues() []*Value {
 }
 
 func (x *Value) GetBoolArray() []bool {
-	vals := x.GetValues()
-	array := make([]bool, 0, len(vals))
-	for _, v := range vals {
-		array = append(array, v.GetBoolValue())
-	}
-	return array
+	return mapSlice(x.GetValues(), (*Value).GetBool)
 }
 
 func (x *Value) GetIntArray() []int {
-	vals := x.GetValues()
-	array := make([]int, 0, len(vals))
-	for _, v := range vals {
-		array = append(array, v.GetInt())
-	}
-	return array
+	return mapSlice(x.GetValues(), (*Value).GetInt)
 }
 
 func (x *Value) GetInt64Array() []int64 {
-	vals := x.GetValues()
-	array := make([]int64, 0, len(vals))
-	for _, v := range vals {
-		array = append(array, v.GetInt64())
-	}
-	return array
+	return mapSlice(x.GetValues(), (*Value).GetInt64)
 }
 
 func (x *Value) GetUintArray() []uint {
-	vals := x.GetValues()
-	array := make([]uint, 0, len(vals))
-	for _, v := range vals {
-		array = append(array, v.GetUint())
-	}
-	return array
+	return mapSlice(x.GetValues(), (*Value).GetUint)
 }
 
 func (x *Value) GetFloat64Array() []float64 {
-	vals := x.GetValues()
-	array := make([]float64, 0, len(vals))
-	for _, v := range vals {
-		array = append(array, v.GetFloat64())
-	}
-	return array
+	return mapSlice(x.GetValues(), (*Value).GetFloat64)
 }
 
 func (x *Value) GetStringArray() []string {
-	vals := x.GetValues()
-	array := make([]string, 0, len(vals))
-	for _, v := range vals {
-		array = append(array, v.GetStringValue())
-	}
-	return array
-}
-
-func (x *Value) GetValueArray() []*Value {
-	if values := x.GetValuesValue(); values != nil {
-		return values.Vals
-	}
-	return nil
+	return mapSlice(x.GetValues(), (*Value).GetString)
 }
 
 func (x *Value) GetObjectArray() []*Object {
-	if values := x.GetValueArray(); len(values) > 0 {
-		objs := make([]*Object, 0, len(values))
-		for _, v := range values {
-			objs = append(objs, v.GetObject())
-		}
-		return objs
-	}
-	return nil
+	return mapSlice(x.GetValues(), (*Value).GetObject)
 }
