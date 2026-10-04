@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestValues(t *testing.T) {
@@ -12,20 +14,10 @@ func TestValues(t *testing.T) {
 	}}
 
 	toString, err := jsoniter.MarshalToString(vals)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.JSONEq(t, `[true,"foo",18]`, toString)
 
-	// fmt.Printf("%s\n", toString)
-	// fmt.Printf("%+v\n", toString)
-	// fmt.Printf("%#v\n", toString)
-
-	vals2 := &Values{Vals: []*Value{}}
-	err = jsoniter.UnmarshalFromString(toString, vals2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// fmt.Printf("%v\n", vals2)
-	// fmt.Printf("%+v\n", vals2)
-	// fmt.Printf("%#v\n", vals2)
+	var decoded Values
+	require.NoError(t, jsoniter.UnmarshalFromString(toString, &decoded))
+	require.True(t, proto.Equal(vals, &decoded))
 }

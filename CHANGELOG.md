@@ -10,6 +10,7 @@
 | --- | --- |
 | `Object.From2` | 使用 `Object.From`，成功替换全部字段并深复制，失败保留原值。 |
 | 分类错误类型，例如 `*NotFoundError` | 构造器统一返回 `*Error`；通过 `IsNotFoundError` 等分类函数或 `errors.Is` 判断。 |
+| `NewUnknownErrorError`、`IsUnknownErrorError`、`NewInternalErrorError` | 分别使用 `NewUnknownError`、`IsUnknownError`、`NewInternalError`。 |
 | `NewDuration`、`Duration.FromSeconds` | 处理新增的 error 返回值；拒绝非有限或越界输入。 |
 | `Duration.ToDuration`、`ToNanoSeconds`、`Timestamp.Add` | 处理新增的 error 返回值，转换溢出返回错误。 |
 | `NewUrlQuery`、查询 `Add/Set` | 处理 error 返回值；输入只接受标量或一层标量集合。 |
@@ -27,7 +28,8 @@
 - nil 数组输出 `null`，显式空切片输出 `[]`；无参数调用 `New*ArrayValue()` 等同于 nil 数组。数组读取保留这一形态。
 - Value 浮点 JSON 保留小数点或指数，例如 `1.0`，避免解码成整数；普通保留字符串使用 `str.` 转义，二进制使用 `b64.`。
 - 包装类型解码成功后替换字段；类型解码失败保留原值，null 清零或清空。`FromUrlValues` 替换全部键并复制源切片。
-- Error JSON 保留完整 ErrorCode 元数据；枚举接受已知名称与严格整数，拒绝未知值和非法数字。
+- Error JSON 的 `code` 从字符串改为完整 ErrorCode 对象，保留元数据。gokit 的扁平响应仍使用字符串 `code`，带 `error` 字段的响应需要按新对象格式读取 `error.code`。
+- 枚举接受已知名称与严格整数，拒绝未知值和非法数字。
 - Duration 的 SQL 输出改为精确十进制秒字符串，GORM 类型为 `text`。已有数值列需要由应用迁移；浮点列中已经丢失的精度无法恢复。
 - Timestamp 输出 UTC RFC3339Nano，直接解析原始时区文本；URL 查询中的 `+` 由 `net/url` 编码为 `%2B`。
 - 无 scheme 的 URL authority 保留 `//`，例如 `//example.com/path`；该结果可继续作为 URL 解析。
