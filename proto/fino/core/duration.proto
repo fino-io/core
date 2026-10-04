@@ -4,7 +4,12 @@ package fino.core;
 
 option go_package = "github.com/fino-io/core/go/fino/core;core";
 
+// Duration stores a signed duration with nanosecond precision.
+// Unlike google.protobuf.Duration, seconds supports the full int64 range.
+// Go's compact JSON is an exact decimal seconds string, for example "-1.5s".
 message Duration {
+  // Whole seconds; when nonzero, it must have the same sign as nanoseconds.
   int64 seconds = 1;
+  // Fractional nanoseconds in [-999999999, 999999999].
   int32 nanoseconds = 2;
 }

@@ -6,20 +6,33 @@ import "fino/core/boxed.proto";
 
 option go_package = "github.com/fino-io/core/go/fino/core;core";
 
+// Url represents a parsed hierarchical URL, including relative references.
+// Go's compact JSON is a URL string; ProtoJSON uses these fields.
+// Opaque URLs are unsupported. Raw escaping, query order, and a trailing empty
+// query marker are not preserved; this message is not a copy of the original bytes.
 message Url {
+  // Authority stores user information, host, and an optional port.
   message Authority {
+    // Escaped user information, optionally including a password.
     string user_info = 1;
+    // Hostname or IP address without brackets or a port.
     string host = 2;
+    // Port text; empty when no port was specified.
     string port = 3;
   }
 
+  // Query maps decoded names to ordered, repeated literal parameter values.
+  // Commas and JSON-looking text are ordinary characters, not implicit lists.
   message Query {
     map<string, StringValues> vals = 1;
   }
 
+  // URL scheme without the trailing colon.
   string scheme = 1;
   Authority authority = 2;
+  // Decoded path, escaped by the Go formatter.
   string path = 3;
   Query query = 10;
+  // Decoded fragment without the leading hash.
   string fragment = 15;
 }

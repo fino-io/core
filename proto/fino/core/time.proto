@@ -4,6 +4,7 @@ package fino.core;
 
 option go_package = "github.com/fino-io/core/go/fino/core;core";
 
+// Month uses Gregorian month numbers; zero means unspecified.
 enum Month {
   MONTH_UNSPECIFIED = 0;
   MONTH_JANUARY = 1;
@@ -20,6 +21,7 @@ enum Month {
   MONTH_DECEMBER = 12;
 }
 
+// DayOfWeek numbers Monday through Sunday as 1 through 7; zero means unspecified.
 enum DayOfWeek {
   DAY_OF_WEEK_UNSPECIFIED = 0;
   DAY_OF_WEEK_MONDAY = 1;
@@ -31,36 +33,66 @@ enum DayOfWeek {
   DAY_OF_WEEK_SUNDAY = 7;
 }
 
+// Timestamp represents an instant in the range 0001-01-01 through 9999-12-31 UTC.
+// Go's compact JSON uses an RFC3339Nano string; ProtoJSON uses these fields.
 message Timestamp {
+  // Whole seconds since 1970-01-01T00:00:00Z, including negative values.
   int64 seconds = 1;
+  // Fractional nanoseconds in [0, 999999999], also for negative seconds.
   int32 nanoseconds = 2;
 }
 
+// TimeZone resolves an IANA name first, or uses a fixed UTC offset without a name.
+// An absent TimeZone in DateTime means UTC.
 message TimeZone {
+  // Seconds east of UTC. Fixed offsets must be whole minutes with magnitude below 24 hours.
+  // Ignored when name is set.
   int32 offset = 1;
+  // IANA location such as Asia/Shanghai; an unknown name is invalid.
   string name = 2;
 }
 
+// TimeOfDay represents a local wall time without a date or timezone.
+// Leap seconds and 24:00:00 are not supported.
 message TimeOfDay {
+  // Hour in [0, 23].
   int32 hours = 1;
+  // Minute in [0, 59].
   int32 minutes = 2;
+  // Second in [0, 59].
   int32 seconds = 3;
+  // Fractional nanoseconds in [0, 999999999].
   int32 nanoseconds = 4;
 }
 
+// Date represents a complete, valid Gregorian date; partial dates are not supported.
 message Date {
+  // Year in [1, 9999].
   int32 year = 1;
+  // Month in [1, 12].
   int32 month = 2;
+  // Day valid for the selected year and month.
   int32 day = 3;
 }
 
+// DateTime represents a valid local date and time in a timezone.
+// Go conversion rejects nonexistent local times and follows time.Date for ambiguous times.
+// Go formatting uses RFC3339Nano offsets and does not preserve the IANA name.
 message DateTime {
+  // Year in [1, 9999].
   int32 year = 1;
+  // Month in [1, 12].
   int32 month = 2;
+  // Day valid for the selected year and month.
   int32 day = 3;
+  // Hour in [0, 23].
   int32 hour = 4;
+  // Minute in [0, 59].
   int32 minute = 5;
+  // Second in [0, 59]; leap seconds are not supported.
   int32 seconds = 6;
+  // Fractional nanoseconds in [0, 999999999].
   int32 nanoseconds = 7;
+  // Absent means UTC. Name takes precedence over offset when present.
   TimeZone time_zone = 10;
 }

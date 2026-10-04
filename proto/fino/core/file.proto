@@ -6,23 +6,39 @@ import "fino/core/time.proto";
 
 option go_package = "github.com/fino-io/core/go/fino/core;core";
 
+// File represents a named filesystem entry; mode is the sole entry type.
 message File {
+  reserved 2;
+  reserved "is_dir";
+
+  // Mode distinguishes directories from regular files.
   enum Mode {
     MODE_UNSPECIFIED = 0;
     MODE_DIR = 1;
+    MODE_FILE = 2;
   }
 
+  // Info contains entry metadata; the entry name belongs to File.name.
   message Info {
-    string name = 1;
+    reserved 1;
+    reserved "name";
+
+    // Filename suffix without the leading dot; empty when there is no suffix.
     string suffix = 2;
+    // Size in bytes; must be non-negative.
     int64 size = 3;
+    // Last metadata change time, not creation time; absent when unavailable.
     Timestamp change_time = 10;
+    // Last content modification time; absent when unavailable.
     Timestamp modify_time = 11;
   }
 
+  // Entry name relative to its parent.
   string name = 1;
-  bool is_dir = 2;
+  // Entry type; zero means the type is unknown.
   Mode mode = 5;
+  // Optional metadata for the entry.
   Info info = 6;
+  // Directory children; must be empty for regular files.
   repeated File files = 10;
 }

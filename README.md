@@ -41,9 +41,10 @@ fino build --output=. --targets=api
 
 API generation needs `package.yaml` and `proto/`. Service infrastructure
 configuration in `fino.yaml` is only required when building the `service`
-target. Use a Fino build containing the API-only configuration and
-source-relative helper path fixes; the original v1.7.1 release requires
-`fino.yaml` and writes this project's enum helpers to the wrong directory.
+target. Use a Fino build containing the API-only configuration,
+source-relative helper paths, and shared `RegisterJSONEnum` template. Older
+builds can overwrite strict enum validation with permissive codecs. Run the
+Go tests after generation to verify the generated runtime behavior.
 
 Generation updates:
 
@@ -53,6 +54,14 @@ Generation updates:
 
 The hand-written value-type extensions, logging runtime, and their tests are
 maintained alongside generated code in `go/`.
+
+`DBOptions` and `ValidateOptions` use optional numeric and string fields to
+preserve explicit zero or empty settings. In Go, use `proto.Int64(0)` or
+`proto.String("")` to set them; nil leaves them unspecified. The generated
+getters return default values, so check field pointers when presence matters.
+
+`File.mode` selects `MODE_DIR` or `MODE_FILE`; `File.name` is the entry name.
+Metadata in `File.info` contains no duplicate name or directory flag.
 
 Validate the Go packages:
 

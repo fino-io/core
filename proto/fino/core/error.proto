@@ -7,12 +7,13 @@ import "fino/core/value.proto";
 
 option go_package = "github.com/fino-io/core/go/fino/core;core";
 
+// Error carries a classified error, a developer-facing message, and structured details.
 message Error {
   ErrorCode code = 1;
 
-  // a developer-facing error message
+  // Developer-facing error message; avoid exposing internal details to end users.
   string message = 2;
 
-  // a list if messages that carry the error details
+  // Structured values providing additional error details.
   repeated Value details = 10;
 }

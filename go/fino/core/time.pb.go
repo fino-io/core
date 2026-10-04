@@ -20,6 +20,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Month uses Gregorian month numbers; zero means unspecified.
 type Month int32
 
 const (
@@ -99,6 +100,7 @@ func (Month) EnumDescriptor() ([]byte, []int) {
 	return file_fino_core_time_proto_rawDescGZIP(), []int{0}
 }
 
+// DayOfWeek numbers Monday through Sunday as 1 through 7; zero means unspecified.
 type DayOfWeek int32
 
 const (
@@ -163,12 +165,16 @@ func (DayOfWeek) EnumDescriptor() ([]byte, []int) {
 	return file_fino_core_time_proto_rawDescGZIP(), []int{1}
 }
 
+// Timestamp represents an instant in the range 0001-01-01 through 9999-12-31 UTC.
+// Go's compact JSON uses an RFC3339Nano string; ProtoJSON uses these fields.
 type Timestamp struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Seconds     int64 `protobuf:"varint,1,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Whole seconds since 1970-01-01T00:00:00Z, including negative values.
+	Seconds int64 `protobuf:"varint,1,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Fractional nanoseconds in [0, 999999999], also for negative seconds.
 	Nanoseconds int32 `protobuf:"varint,2,opt,name=nanoseconds,proto3" json:"nanoseconds,omitempty"`
 }
 
@@ -218,13 +224,18 @@ func (x *Timestamp) GetNanoseconds() int32 {
 	return 0
 }
 
+// TimeZone resolves an IANA name first, or uses a fixed UTC offset without a name.
+// An absent TimeZone in DateTime means UTC.
 type TimeZone struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Offset int32  `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
-	Name   string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Seconds east of UTC. Fixed offsets must be whole minutes with magnitude below 24 hours.
+	// Ignored when name is set.
+	Offset int32 `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
+	// IANA location such as Asia/Shanghai; an unknown name is invalid.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 }
 
 func (x *TimeZone) Reset() {
@@ -273,14 +284,20 @@ func (x *TimeZone) GetName() string {
 	return ""
 }
 
+// TimeOfDay represents a local wall time without a date or timezone.
+// Leap seconds and 24:00:00 are not supported.
 type TimeOfDay struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Hours       int32 `protobuf:"varint,1,opt,name=hours,proto3" json:"hours,omitempty"`
-	Minutes     int32 `protobuf:"varint,2,opt,name=minutes,proto3" json:"minutes,omitempty"`
-	Seconds     int32 `protobuf:"varint,3,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Hour in [0, 23].
+	Hours int32 `protobuf:"varint,1,opt,name=hours,proto3" json:"hours,omitempty"`
+	// Minute in [0, 59].
+	Minutes int32 `protobuf:"varint,2,opt,name=minutes,proto3" json:"minutes,omitempty"`
+	// Second in [0, 59].
+	Seconds int32 `protobuf:"varint,3,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Fractional nanoseconds in [0, 999999999].
 	Nanoseconds int32 `protobuf:"varint,4,opt,name=nanoseconds,proto3" json:"nanoseconds,omitempty"`
 }
 
@@ -344,14 +361,18 @@ func (x *TimeOfDay) GetNanoseconds() int32 {
 	return 0
 }
 
+// Date represents a complete, valid Gregorian date; partial dates are not supported.
 type Date struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Year  int32 `protobuf:"varint,1,opt,name=year,proto3" json:"year,omitempty"`
+	// Year in [1, 9999].
+	Year int32 `protobuf:"varint,1,opt,name=year,proto3" json:"year,omitempty"`
+	// Month in [1, 12].
 	Month int32 `protobuf:"varint,2,opt,name=month,proto3" json:"month,omitempty"`
-	Day   int32 `protobuf:"varint,3,opt,name=day,proto3" json:"day,omitempty"`
+	// Day valid for the selected year and month.
+	Day int32 `protobuf:"varint,3,opt,name=day,proto3" json:"day,omitempty"`
 }
 
 func (x *Date) Reset() {
@@ -407,19 +428,30 @@ func (x *Date) GetDay() int32 {
 	return 0
 }
 
+// DateTime represents a valid local date and time in a timezone.
+// Go conversion rejects nonexistent local times and follows time.Date for ambiguous times.
+// Go formatting uses RFC3339Nano offsets and does not preserve the IANA name.
 type DateTime struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Year        int32     `protobuf:"varint,1,opt,name=year,proto3" json:"year,omitempty"`
-	Month       int32     `protobuf:"varint,2,opt,name=month,proto3" json:"month,omitempty"`
-	Day         int32     `protobuf:"varint,3,opt,name=day,proto3" json:"day,omitempty"`
-	Hour        int32     `protobuf:"varint,4,opt,name=hour,proto3" json:"hour,omitempty"`
-	Minute      int32     `protobuf:"varint,5,opt,name=minute,proto3" json:"minute,omitempty"`
-	Seconds     int32     `protobuf:"varint,6,opt,name=seconds,proto3" json:"seconds,omitempty"`
-	Nanoseconds int32     `protobuf:"varint,7,opt,name=nanoseconds,proto3" json:"nanoseconds,omitempty"`
-	TimeZone    *TimeZone `protobuf:"bytes,10,opt,name=time_zone,json=timeZone,proto3" json:"timeZone,omitempty"`
+	// Year in [1, 9999].
+	Year int32 `protobuf:"varint,1,opt,name=year,proto3" json:"year,omitempty"`
+	// Month in [1, 12].
+	Month int32 `protobuf:"varint,2,opt,name=month,proto3" json:"month,omitempty"`
+	// Day valid for the selected year and month.
+	Day int32 `protobuf:"varint,3,opt,name=day,proto3" json:"day,omitempty"`
+	// Hour in [0, 23].
+	Hour int32 `protobuf:"varint,4,opt,name=hour,proto3" json:"hour,omitempty"`
+	// Minute in [0, 59].
+	Minute int32 `protobuf:"varint,5,opt,name=minute,proto3" json:"minute,omitempty"`
+	// Second in [0, 59]; leap seconds are not supported.
+	Seconds int32 `protobuf:"varint,6,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Fractional nanoseconds in [0, 999999999].
+	Nanoseconds int32 `protobuf:"varint,7,opt,name=nanoseconds,proto3" json:"nanoseconds,omitempty"`
+	// Absent means UTC. Name takes precedence over offset when present.
+	TimeZone *TimeZone `protobuf:"bytes,10,opt,name=time_zone,json=timeZone,proto3" json:"timeZone,omitempty"`
 }
 
 func (x *DateTime) Reset() {

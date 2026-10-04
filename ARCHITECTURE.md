@@ -31,6 +31,12 @@ flowchart LR
 
 `logs` 和 `core` 可独立使用。应用导入 `core` 后，其 JSON codec 注册也会影响日志反射编码中的这些类型。
 
+## 生成选项与文件契约
+
+`DBOptions` 的 `len/default/comment/index/unique_index` 和 `ValidateOptions` 的 `len/min/max/oneof` 使用 `optional`。缺省不产生约束；显式零值、空字符串保留字段存在性。Go 调用方使用 `proto.Int64`、`proto.String` 构造字段，通过指针是否为 nil 区分缺省值，不能仅依赖 getter。字段类型和含义由 `proto/fino/options.proto` 的注释定义。
+
+`File.name` 保存名称，`File.mode` 是唯一文件类型，`MODE_DIR` 表示目录、`MODE_FILE` 表示普通文件、零表示未知。`File.info` 仅保存元数据；`change_time` 是元数据变更时间，`modify_time` 是内容修改时间。目录子项使用 `files`，普通文件不包含子项。重复的 `is_dir` 和 `Info.name` 已删除。
+
 ## 数据转换与 JSON
 
 | 入口 | 语义 |
@@ -123,7 +129,7 @@ SQL NULL 扫描到时间类型时清零。`Duration.Value` 输出精确秒数字
 - `Object` 和查询映射是可变容器，共享写入由调用方同步。
 - URL 解析和格式化复用 `net/url`；契约未保存 Opaque、RawPath、ForceQuery，不能保留所有 URL 原始字节。
 - `Timestamp.Sub`、`Since`、`Until` 沿用标准库时间运算的时长范围。
-- 本轮没有引入运行时依赖，也没有修改 `.pb.go`。
+- Protobuf 类型和枚举 helper 由 Fino 从源契约重建，生成后的行为由 Go 回归测试验证。
 
 验证命令：
 

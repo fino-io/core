@@ -6,38 +6,64 @@ import "google/protobuf/descriptor.proto";
 
 option go_package = "github.com/fino-io/core/go/fino;fino";
 
+// ModelOptions selects model generation and the services that use the model.
 message ModelOptions {
+  // Enables model generation even when services is empty.
   bool generate = 1;
+  // Service names also enable generation of this model.
   repeated string services = 2;
 }
 
+// DBOptions describes logical persistence settings for a field.
+// Optional fields distinguish omitted settings from explicit zero or empty values.
 message DBOptions {
+  // Allows database NULL; false keeps the generator's non-null convention.
   bool null = 1;
+  // Requests a database-generated incrementing value.
   bool auto_increment = 2;
-  int64 len = 10;
-  string default = 20;
-  string comment = 21;
-  string index = 30;
-  string unique_index = 31;
+  // Positive string length; omitted or non-positive values use generator defaults.
+  optional int64 len = 10;
+  // SQL default expression; explicit empty text gives string fields an empty SQL string default.
+  optional string default = 20;
+  // Database column comment.
+  optional string comment = 21;
+  // Index name; an explicit empty string requests an unnamed index.
+  optional string index = 30;
+  // Unique index name; an explicit empty string requests an unnamed unique index.
+  optional string unique_index = 31;
 }
 
+// ValidateOptions maps field constraints to go-playground/validator tags in Fino.
+// Numeric bounds apply to numbers or lengths, according to the field type.
 message ValidateOptions {
+  // Rejects the field type's zero value.
   bool required = 1;
+  // Skips subsequent constraints when the field is empty.
   bool omitempty = 2;
+  // Applies element constraints inside a collection.
   bool dive = 3;
 
-  int64 len = 10;
-  int64 min = 11;
-  int64 max = 12;
+  // Exact numeric value or length, according to the field type; explicit zero is preserved.
+  optional int64 len = 10;
+  // Inclusive lower bound; explicit zero is distinct from no lower bound.
+  optional int64 min = 11;
+  // Inclusive upper bound; explicit zero is distinct from no upper bound.
+  optional int64 max = 12;
 
-  string oneof = 20;
+  // Allowed values using validator's space-separated oneof syntax.
+  optional string oneof = 20;
 
+  // Validates an email address.
   bool email = 30;
+  // Validates a URL.
   bool url = 31;
+  // Validates a UUID.
   bool uuid = 32;
 }
 
+// MessagingOptions selects messaging behavior for a service method.
 message MessagingOptions {
+  // Treats the method as a subscription handler.
   bool subscription = 1;
 }
 

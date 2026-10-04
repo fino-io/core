@@ -6,22 +6,24 @@ import "fino/core/url.proto";
 
 option go_package = "github.com/fino-io/core/go/fino/core;core";
 
-// ErrorCode
-// format: {domain}.{code}.{name}
+// ErrorCode identifies an error by code and domain; name is descriptive metadata.
+// Go Parse/Format use the decimal numeric code, without domain or name.
 message ErrorCode {
+  // Numeric identifier within the domain; it need not equal an HTTP status.
   int32 code = 1;
 
-  // the name of error code
+  // Symbolic name of the error code.
   string name = 2;
 
-  // system, runtime, ...
+  // Namespace for the code; an empty domain denotes the default namespace.
   string domain = 3;
 
-  // a detail description for the code
+  // Human-readable explanation of the code.
   string description = 5;
 
-  // the api document url for the error code
+  // URL documenting the error code.
   Url document = 6;
 
+  // HTTP status in [100, 599]; Go falls back to 500 for absent or invalid values.
   int32 http_status_code = 8;
 }

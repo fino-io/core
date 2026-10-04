@@ -20,22 +20,24 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// ErrorCode
-// format: {domain}.{code}.{name}
+// ErrorCode identifies an error by code and domain; name is descriptive metadata.
+// Go Parse/Format use the decimal numeric code, without domain or name.
 type ErrorCode struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// Numeric identifier within the domain; it need not equal an HTTP status.
 	Code int32 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
-	// the name of error code
+	// Symbolic name of the error code.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// system, runtime, ...
+	// Namespace for the code; an empty domain denotes the default namespace.
 	Domain string `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
-	// a detail description for the code
+	// Human-readable explanation of the code.
 	Description string `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	// the api document url for the error code
-	Document       *Url  `protobuf:"bytes,6,opt,name=document,proto3" json:"document,omitempty"`
+	// URL documenting the error code.
+	Document *Url `protobuf:"bytes,6,opt,name=document,proto3" json:"document,omitempty"`
+	// HTTP status in [100, 599]; Go falls back to 500 for absent or invalid values.
 	HttpStatusCode int32 `protobuf:"varint,8,opt,name=http_status_code,json=httpStatusCode,proto3" json:"httpStatusCode,omitempty"`
 }
 

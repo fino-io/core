@@ -20,16 +20,23 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Url represents a parsed hierarchical URL, including relative references.
+// Go's compact JSON is a URL string; ProtoJSON uses these fields.
+// Opaque URLs are unsupported. Raw escaping, query order, and a trailing empty
+// query marker are not preserved; this message is not a copy of the original bytes.
 type Url struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// URL scheme without the trailing colon.
 	Scheme    string         `protobuf:"bytes,1,opt,name=scheme,proto3" json:"scheme,omitempty"`
 	Authority *Url_Authority `protobuf:"bytes,2,opt,name=authority,proto3" json:"authority,omitempty"`
-	Path      string         `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	Query     *Url_Query     `protobuf:"bytes,10,opt,name=query,proto3" json:"query,omitempty"`
-	Fragment  string         `protobuf:"bytes,15,opt,name=fragment,proto3" json:"fragment,omitempty"`
+	// Decoded path, escaped by the Go formatter.
+	Path  string     `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Query *Url_Query `protobuf:"bytes,10,opt,name=query,proto3" json:"query,omitempty"`
+	// Decoded fragment without the leading hash.
+	Fragment string `protobuf:"bytes,15,opt,name=fragment,proto3" json:"fragment,omitempty"`
 }
 
 func (x *Url) Reset() {
@@ -99,14 +106,18 @@ func (x *Url) GetFragment() string {
 	return ""
 }
 
+// Authority stores user information, host, and an optional port.
 type Url_Authority struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// Escaped user information, optionally including a password.
 	UserInfo string `protobuf:"bytes,1,opt,name=user_info,json=userInfo,proto3" json:"userInfo,omitempty"`
-	Host     string `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
-	Port     string `protobuf:"bytes,3,opt,name=port,proto3" json:"port,omitempty"`
+	// Hostname or IP address without brackets or a port.
+	Host string `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
+	// Port text; empty when no port was specified.
+	Port string `protobuf:"bytes,3,opt,name=port,proto3" json:"port,omitempty"`
 }
 
 func (x *Url_Authority) Reset() {
@@ -162,6 +173,8 @@ func (x *Url_Authority) GetPort() string {
 	return ""
 }
 
+// Query maps decoded names to ordered, repeated literal parameter values.
+// Commas and JSON-looking text are ordinary characters, not implicit lists.
 type Url_Query struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

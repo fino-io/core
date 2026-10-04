@@ -20,12 +20,17 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Duration stores a signed duration with nanosecond precision.
+// Unlike google.protobuf.Duration, seconds supports the full int64 range.
+// Go's compact JSON is an exact decimal seconds string, for example "-1.5s".
 type Duration struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Seconds     int64 `protobuf:"varint,1,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Whole seconds; when nonzero, it must have the same sign as nanoseconds.
+	Seconds int64 `protobuf:"varint,1,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	// Fractional nanoseconds in [-999999999, 999999999].
 	Nanoseconds int32 `protobuf:"varint,2,opt,name=nanoseconds,proto3" json:"nanoseconds,omitempty"`
 }
 

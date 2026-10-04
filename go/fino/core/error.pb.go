@@ -20,15 +20,16 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Error carries a classified error, a developer-facing message, and structured details.
 type Error struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	Code *ErrorCode `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	// a developer-facing error message
+	// Developer-facing error message; avoid exposing internal details to end users.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	// a list if messages that carry the error details
+	// Structured values providing additional error details.
 	Details []*Value `protobuf:"bytes,10,rep,name=details,proto3" json:"details,omitempty"`
 }
 

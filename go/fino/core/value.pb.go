@@ -20,6 +20,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ValueKind describes the runtime kind selected by Value.val.
 type ValueKind int32
 
 const (
@@ -87,6 +88,7 @@ func (ValueKind) EnumDescriptor() ([]byte, []int) {
 	return file_fino_core_value_proto_rawDescGZIP(), []int{0}
 }
 
+// Object maps UTF-8 keys to values. Go's compact JSON is a plain JSON object.
 type Object struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -134,6 +136,7 @@ func (x *Object) GetVals() map[string]*Value {
 	return nil
 }
 
+// Values is an ordered collection. Go's compact JSON is a plain JSON array.
 type Values struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -181,6 +184,12 @@ func (x *Values) GetVals() []*Value {
 	return nil
 }
 
+// Value represents an exact scalar or a nested collection; an absent val means null.
+// Go's compact JSON preserves uint64/int64 integers, rejecting integer overflow.
+// Bytes use "b64.<base64>"; non-finite numbers use "NaN", "Infinity", or "-Infinity".
+// Strings matching these tokens or starting with "b64." or "str." gain a "str." prefix.
+// These rules apply to Go's compact codec, not ProtoJSON's field-based representation.
+// In-memory collections must not contain cycles.
 type Value struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -307,6 +316,7 @@ type isValue_Val interface {
 }
 
 type Value_NullValue struct {
+	// Explicit null; an absent oneof has the same null meaning in Go.
 	NullValue *Null `protobuf:"bytes,1,opt,name=null_value,json=nullValue,proto3,oneof"`
 }
 
@@ -315,18 +325,22 @@ type Value_BoolValue struct {
 }
 
 type Value_PositiveValue struct {
+	// Non-negative integer, including zero, in the full uint64 range.
 	PositiveValue uint64 `protobuf:"varint,3,opt,name=positive_value,json=positiveValue,proto3,oneof"`
 }
 
 type Value_NegativeValue struct {
+	// Absolute magnitude of a negative integer, in [1, 2^63].
 	NegativeValue uint64 `protobuf:"varint,4,opt,name=negative_value,json=negativeValue,proto3,oneof"`
 }
 
 type Value_NumberValue struct {
+	// IEEE 754 double, including NaN and infinities.
 	NumberValue float64 `protobuf:"fixed64,5,opt,name=number_value,json=numberValue,proto3,oneof"`
 }
 
 type Value_StringValue struct {
+	// Valid UTF-8 text; the compact codec escapes reserved prefixes and tokens.
 	StringValue string `protobuf:"bytes,7,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
 

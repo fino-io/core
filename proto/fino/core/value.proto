@@ -6,6 +6,7 @@ import "fino/core/null.proto";
 
 option go_package = "github.com/fino-io/core/go/fino/core;core";
 
+// ValueKind describes the runtime kind selected by Value.val.
 enum ValueKind {
   VALUE_KIND_UNSPECIFIED = 0;
   VALUE_KIND_NULL = 1;
@@ -18,21 +19,34 @@ enum ValueKind {
   VALUE_KIND_OBJECT = 8;
 }
 
+// Object maps UTF-8 keys to values. Go's compact JSON is a plain JSON object.
 message Object {
   map<string, Value> vals = 1;
 }
 
+// Values is an ordered collection. Go's compact JSON is a plain JSON array.
 message Values {
   repeated Value vals = 1;
 }
 
+// Value represents an exact scalar or a nested collection; an absent val means null.
+// Go's compact JSON preserves uint64/int64 integers, rejecting integer overflow.
+// Bytes use "b64.<base64>"; non-finite numbers use "NaN", "Infinity", or "-Infinity".
+// Strings matching these tokens or starting with "b64." or "str." gain a "str." prefix.
+// These rules apply to Go's compact codec, not ProtoJSON's field-based representation.
+// In-memory collections must not contain cycles.
 message Value {
   oneof val {
+    // Explicit null; an absent oneof has the same null meaning in Go.
     Null null_value = 1;
     bool bool_value = 2;
+    // Non-negative integer, including zero, in the full uint64 range.
     uint64 positive_value = 3;
+    // Absolute magnitude of a negative integer, in [1, 2^63].
     uint64 negative_value = 4;
+    // IEEE 754 double, including NaN and infinities.
     double number_value = 5;
+    // Valid UTF-8 text; the compact codec escapes reserved prefixes and tokens.
     string string_value = 7;
     bytes bytes_value = 8;
     Object object_value = 10;
