@@ -1,345 +1,147 @@
 package core
 
-import (
-	"errors"
-)
+import "errors"
 
-type basicError Error
-
-func newBasicError(code *ErrorCode, message string, arguments ...any) *basicError {
-	code = NewErrorCode(code.GetCode())
-	if len(arguments) == 0 {
-		return (*basicError)(NewError(code, message))
-	}
-	return (*basicError)(NewErrorf(code, message, arguments...))
+func NewBadRequestError(format string, args ...any) *Error {
+	return NewErrorf(BadRequest, format, args...)
 }
 
-func (e *basicError) Error() string {
-	return (*Error)(e).Error()
+func NewInvalidArgumentError(format string, args ...any) *Error {
+	return NewErrorf(InvalidArgument, format, args...)
 }
 
-func (e *basicError) ToError() *Error {
-	return (*Error)(e)
+func NewMalformedRequestError(format string, args ...any) *Error {
+	return NewErrorf(MalformedRequest, format, args...)
 }
 
-// Unwrap exposes the shared protobuf error to errors.Is and errors.As.
-func (e *basicError) Unwrap() error {
-	if e == nil {
-		return nil
-	}
-	return e.ToError()
+func NewFailedPreconditionError(format string, args ...any) *Error {
+	return NewErrorf(FailedPrecondition, format, args...)
 }
 
-func (e *basicError) StatusCode() int {
-	return (*Error)(e).StatusCode()
+func NewOutOfRangeError(format string, args ...any) *Error {
+	return NewErrorf(OutOfRange, format, args...)
 }
 
-func (e *basicError) AddDetail(detail any) *basicError {
-	return (*basicError)((*Error)(e).AddDetail(detail))
+func NewUnauthenticatedError(format string, args ...any) *Error {
+	return NewErrorf(Unauthenticated, format, args...)
 }
 
-type BadRequestError struct {
-	*basicError
+func NewPermissionDeniedError(format string, args ...any) *Error {
+	return NewErrorf(PermissionDenied, format, args...)
 }
 
-func NewBadRequestError(format string, args ...any) *BadRequestError {
-	return &BadRequestError{newBasicError(BadRequest, format, args...)}
+func NewNotFoundError(format string, args ...any) *Error {
+	return NewErrorf(NotFound, format, args...)
+}
+
+func NewAlreadyExistsError(format string, args ...any) *Error {
+	return NewErrorf(AlreadyExists, format, args...)
+}
+
+func NewAbortedError(format string, args ...any) *Error {
+	return NewErrorf(Aborted, format, args...)
+}
+
+func NewResourceExhaustedError(format string, args ...any) *Error {
+	return NewErrorf(ResourceExhausted, format, args...)
+}
+
+func NewCancelledError(format string, args ...any) *Error {
+	return NewErrorf(Cancelled, format, args...)
+}
+
+func NewUnknownError(format string, args ...any) *Error {
+	return NewErrorf(UnknownError, format, args...)
+}
+
+func NewInternalError(format string, args ...any) *Error {
+	return NewErrorf(InternalError, format, args...)
+}
+
+func NewDataLossError(format string, args ...any) *Error {
+	return NewErrorf(DataLoss, format, args...)
+}
+
+func NewUnimplementedError(format string, args ...any) *Error {
+	return NewErrorf(Unimplemented, format, args...)
+}
+
+func NewUnavailableError(format string, args ...any) *Error {
+	return NewErrorf(Unavailable, format, args...)
+}
+
+func NewDeadlineExceededError(format string, args ...any) *Error {
+	return NewErrorf(DeadlineExceeded, format, args...)
 }
 
 func IsBadRequestError(err error) bool {
-	return errors.Is(err, &BadRequestError{})
-}
-
-func (*BadRequestError) Is(target error) bool {
-	_, ok := target.(*BadRequestError)
-	return ok
-}
-
-type InvalidArgumentError struct {
-	*basicError
-}
-
-func NewInvalidArgumentError(format string, args ...any) *InvalidArgumentError {
-	return &InvalidArgumentError{newBasicError(InvalidArgument, format, args...)}
+	return errors.Is(err, &Error{Code: BadRequest})
 }
 
 func IsInvalidArgumentError(err error) bool {
-	return errors.Is(err, &InvalidArgumentError{})
-}
-
-func (*InvalidArgumentError) Is(target error) bool {
-	_, ok := target.(*InvalidArgumentError)
-	return ok
-}
-
-type MalformedRequestError struct {
-	*basicError
-}
-
-func NewMalformedRequestError(format string, args ...any) *MalformedRequestError {
-	return &MalformedRequestError{newBasicError(MalformedRequest, format, args...)}
+	return errors.Is(err, &Error{Code: InvalidArgument})
 }
 
 func IsMalformedRequestError(err error) bool {
-	return errors.Is(err, &MalformedRequestError{})
-}
-
-func (*MalformedRequestError) Is(target error) bool {
-	_, ok := target.(*MalformedRequestError)
-	return ok
-}
-
-type FailedPreconditionError struct {
-	*basicError
-}
-
-func NewFailedPreconditionError(format string, args ...any) *FailedPreconditionError {
-	return &FailedPreconditionError{newBasicError(FailedPrecondition, format, args...)}
+	return errors.Is(err, &Error{Code: MalformedRequest})
 }
 
 func IsFailedPreconditionError(err error) bool {
-	return errors.Is(err, &FailedPreconditionError{})
-}
-
-func (*FailedPreconditionError) Is(target error) bool {
-	_, ok := target.(*FailedPreconditionError)
-	return ok
-}
-
-type OutOfRangeError struct {
-	*basicError
-}
-
-func NewOutOfRangeError(format string, args ...any) *OutOfRangeError {
-	return &OutOfRangeError{newBasicError(OutOfRange, format, args...)}
+	return errors.Is(err, &Error{Code: FailedPrecondition})
 }
 
 func IsOutOfRangeError(err error) bool {
-	return errors.Is(err, &OutOfRangeError{})
-}
-
-func (*OutOfRangeError) Is(target error) bool {
-	_, ok := target.(*OutOfRangeError)
-	return ok
-}
-
-type UnauthenticatedError struct {
-	*basicError
-}
-
-func NewUnauthenticatedError(format string, args ...any) *UnauthenticatedError {
-	return &UnauthenticatedError{newBasicError(Unauthenticated, format, args...)}
+	return errors.Is(err, &Error{Code: OutOfRange})
 }
 
 func IsUnauthenticatedError(err error) bool {
-	return errors.Is(err, &UnauthenticatedError{})
-}
-
-func (*UnauthenticatedError) Is(target error) bool {
-	_, ok := target.(*UnauthenticatedError)
-	return ok
-}
-
-type PermissionDeniedError struct {
-	*basicError
-}
-
-func NewPermissionDeniedError(format string, args ...any) *PermissionDeniedError {
-	return &PermissionDeniedError{newBasicError(PermissionDenied, format, args...)}
+	return errors.Is(err, &Error{Code: Unauthenticated})
 }
 
 func IsPermissionDeniedError(err error) bool {
-	return errors.Is(err, &PermissionDeniedError{})
-}
-
-func (*PermissionDeniedError) Is(target error) bool {
-	_, ok := target.(*PermissionDeniedError)
-	return ok
-}
-
-type NotFoundError struct {
-	*basicError
-}
-
-func NewNotFoundError(format string, args ...any) *NotFoundError {
-	return &NotFoundError{newBasicError(NotFound, format, args...)}
+	return errors.Is(err, &Error{Code: PermissionDenied})
 }
 
 func IsNotFoundError(err error) bool {
-	return errors.Is(err, &NotFoundError{})
-}
-
-func (*NotFoundError) Is(target error) bool {
-	_, ok := target.(*NotFoundError)
-	return ok
-}
-
-type AlreadyExistsError struct {
-	*basicError
-}
-
-func NewAlreadyExistsError(format string, args ...any) *AlreadyExistsError {
-	return &AlreadyExistsError{newBasicError(AlreadyExists, format, args...)}
+	return errors.Is(err, &Error{Code: NotFound})
 }
 
 func IsAlreadyExistsError(err error) bool {
-	return errors.Is(err, &AlreadyExistsError{})
-}
-
-func (*AlreadyExistsError) Is(target error) bool {
-	_, ok := target.(*AlreadyExistsError)
-	return ok
-}
-
-type AbortedError struct {
-	*basicError
-}
-
-func NewAbortedError(format string, args ...any) *AbortedError {
-	return &AbortedError{newBasicError(Aborted, format, args...)}
+	return errors.Is(err, &Error{Code: AlreadyExists})
 }
 
 func IsAbortedError(err error) bool {
-	return errors.Is(err, &AbortedError{})
-}
-
-func (*AbortedError) Is(target error) bool {
-	_, ok := target.(*AbortedError)
-	return ok
-}
-
-type ResourceExhaustedError struct {
-	*basicError
-}
-
-func NewResourceExhaustedError(format string, args ...any) *ResourceExhaustedError {
-	return &ResourceExhaustedError{newBasicError(ResourceExhausted, format, args...)}
+	return errors.Is(err, &Error{Code: Aborted})
 }
 
 func IsResourceExhaustedError(err error) bool {
-	return errors.Is(err, &ResourceExhaustedError{})
-}
-
-func (*ResourceExhaustedError) Is(target error) bool {
-	_, ok := target.(*ResourceExhaustedError)
-	return ok
-}
-
-type CancelledError struct {
-	*basicError
-}
-
-func NewCancelledError(format string, args ...any) *CancelledError {
-	return &CancelledError{newBasicError(Cancelled, format, args...)}
+	return errors.Is(err, &Error{Code: ResourceExhausted})
 }
 
 func IsCancelledError(err error) bool {
-	return errors.Is(err, &CancelledError{})
+	return errors.Is(err, &Error{Code: Cancelled})
 }
 
-func (*CancelledError) Is(target error) bool {
-	_, ok := target.(*CancelledError)
-	return ok
-}
-
-type UnknownErrorError struct {
-	*basicError
-}
-
-func NewUnknownErrorError(format string, args ...any) *UnknownErrorError {
-	return &UnknownErrorError{newBasicError(UnknownError, format, args...)}
-}
-
-func IsUnknownErrorError(err error) bool {
-	return errors.Is(err, &UnknownErrorError{})
-}
-
-func (*UnknownErrorError) Is(target error) bool {
-	_, ok := target.(*UnknownErrorError)
-	return ok
-}
-
-type InternalErrorError struct {
-	*basicError
-}
-
-func NewInternalErrorError(format string, args ...any) *InternalErrorError {
-	return &InternalErrorError{newBasicError(InternalError, format, args...)}
+func IsUnknownError(err error) bool {
+	return errors.Is(err, &Error{Code: UnknownError})
 }
 
 func IsInternalError(err error) bool {
-	return errors.Is(err, &InternalErrorError{})
-}
-
-func (*InternalErrorError) Is(target error) bool {
-	_, ok := target.(*InternalErrorError)
-	return ok
-}
-
-type DataLossError struct {
-	*basicError
-}
-
-func NewDataLossError(format string, args ...any) *DataLossError {
-	return &DataLossError{newBasicError(DataLoss, format, args...)}
+	return errors.Is(err, &Error{Code: InternalError})
 }
 
 func IsDataLossError(err error) bool {
-	return errors.Is(err, &DataLossError{})
-}
-
-func (*DataLossError) Is(target error) bool {
-	_, ok := target.(*DataLossError)
-	return ok
-}
-
-type UnimplementedError struct {
-	*basicError
-}
-
-func NewUnimplementedError(format string, args ...any) *UnimplementedError {
-	return &UnimplementedError{newBasicError(Unimplemented, format, args...)}
+	return errors.Is(err, &Error{Code: DataLoss})
 }
 
 func IsUnimplementedError(err error) bool {
-	return errors.Is(err, &UnimplementedError{})
-}
-
-func (*UnimplementedError) Is(target error) bool {
-	_, ok := target.(*UnimplementedError)
-	return ok
-}
-
-type UnavailableError struct {
-	*basicError
-}
-
-func NewUnavailableError(format string, args ...any) *UnavailableError {
-	return &UnavailableError{newBasicError(Unavailable, format, args...)}
+	return errors.Is(err, &Error{Code: Unimplemented})
 }
 
 func IsUnavailableError(err error) bool {
-	return errors.Is(err, &UnavailableError{})
-}
-
-func (*UnavailableError) Is(target error) bool {
-	_, ok := target.(*UnavailableError)
-	return ok
-}
-
-type DeadlineExceededError struct {
-	*basicError
-}
-
-func NewDeadlineExceededError(format string, args ...any) *DeadlineExceededError {
-	return &DeadlineExceededError{newBasicError(DeadlineExceeded, format, args...)}
+	return errors.Is(err, &Error{Code: Unavailable})
 }
 
 func IsDeadlineExceededError(err error) bool {
-	return errors.Is(err, &DeadlineExceededError{})
-}
-
-func (*DeadlineExceededError) Is(target error) bool {
-	_, ok := target.(*DeadlineExceededError)
-	return ok
+	return errors.Is(err, &Error{Code: DeadlineExceeded})
 }

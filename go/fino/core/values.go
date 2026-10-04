@@ -8,6 +8,9 @@ const ValuesTypeFullName = "core.Values"
 // NewValues constructs a ListValue from a general-purpose Go slice.
 // The slice elements are converted using NewValue.
 func NewValues(v []any) (*Values, error) {
+	if v == nil {
+		return &Values{}, nil
+	}
 	x := &Values{Vals: make([]*Value, len(v))}
 	for i, v := range v {
 		var err error

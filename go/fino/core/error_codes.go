@@ -2,19 +2,12 @@ package core
 
 import "net/http"
 
-var (
-	errorCodeIndex     = map[int32]*ErrorCode{}
-	errorCodeNameIndex = map[string]*ErrorCode{}
-)
+var errorCodeIndex = map[int32]*ErrorCode{}
 
 func init() {
-	errorCodeIndex = map[int32]*ErrorCode{}
-	errorCodeNameIndex = map[string]*ErrorCode{}
-
 	addIndex := func(codes ...*ErrorCode) {
 		for _, code := range codes {
 			errorCodeIndex[code.Code] = code
-			errorCodeNameIndex[code.Name] = code
 		}
 	}
 

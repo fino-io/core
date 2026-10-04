@@ -1,78 +1,96 @@
 package core
 
 import (
-	"cmp"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"time"
 )
 
 func FromDuration(d time.Duration) *Duration {
-	dur := &Duration{}
-	return dur.FromDuration(d)
+	return (&Duration{}).FromDuration(d)
 }
 
-func NewDuration(sec float64) *Duration {
+func NewDuration(sec float64) (*Duration, error) {
 	dur := &Duration{}
-	return dur.FromSeconds(sec)
+	if err := dur.FromSeconds(sec); err != nil {
+		return nil, err
+	}
+	return dur, nil
 }
 
 func (x *Duration) FromDuration(d time.Duration) *Duration {
 	if x != nil {
-		sec := d / time.Second
-		nsec := d % time.Second
-
-		x.Seconds = int64(sec)
-		x.Nanoseconds = int64ToInt32(int64(nsec))
+		x.Seconds = int64(d / time.Second)
+		x.Nanoseconds = int32(d % time.Second)
 	}
 	return x
 }
 
-// FromSeconds sets a finite, representable number of seconds.
-// Use Scan when accepting external input that needs validation.
-func (x *Duration) FromSeconds(sec float64) *Duration {
-	if x != nil {
-		x.Seconds = int64(sec)
-		delta := sec - float64(x.Seconds)
-		x.Nanoseconds = int32(math.Round(delta * float64(time.Second)))
-		if x.Nanoseconds >= int32(time.Second) || x.Nanoseconds <= -int32(time.Second) {
-			x.Seconds += int64(x.Nanoseconds) / int64(time.Second)
-			x.Nanoseconds %= int32(time.Second)
-		}
+// FromSeconds rounds to the nearest nanosecond and leaves x unchanged on error.
+func (x *Duration) FromSeconds(sec float64) error {
+	seconds := new(big.Rat).SetFloat64(sec)
+	if seconds == nil {
+		return fmt.Errorf("invalid duration seconds: %v", sec)
 	}
-	return x
-}
-
-func (x *Duration) setSeconds(seconds float64) error {
-	// The upper bound is exclusive: float64 rounds MaxInt64 up to 2^63.
-	// These comparisons also reject NaN and infinities.
-	if !(seconds >= math.MinInt64 && seconds < -float64(math.MinInt64)) {
-		return fmt.Errorf("duration seconds out of range: %v", seconds)
-	}
-	x.FromSeconds(seconds)
-	return nil
+	return x.setSeconds(seconds)
 }
 
 func (x *Duration) parseSeconds(value string) error {
-	seconds, err := strconv.ParseInt(value, 10, 64)
-	if err == nil {
-		x.Seconds, x.Nanoseconds = seconds, 0
+	if x == nil {
+		return fmt.Errorf("Duration: nil receiver")
+	}
+	if !json.Valid([]byte(value)) {
+		return fmt.Errorf("invalid duration seconds: %q", value)
+	}
+	approximate, err := strconv.ParseFloat(value, 64)
+	if err != nil || approximate < math.MinInt64 || approximate > float64(math.MaxInt64) {
+		return fmt.Errorf("duration seconds out of range: %q", value)
+	}
+	if math.Abs(approximate) < 0.5/float64(time.Second) {
+		x.Seconds, x.Nanoseconds = 0, 0
 		return nil
 	}
-	if errors.Is(err, strconv.ErrRange) {
-		return err
+	seconds, ok := new(big.Rat).SetString(value)
+	if !ok {
+		return fmt.Errorf("invalid duration seconds: %q", value)
 	}
-	number, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return err
-	}
-	return x.setSeconds(number)
+	return x.setSeconds(seconds)
 }
 
-func (x *Duration) ToDuration() time.Duration {
-	return time.Duration(x.GetSeconds())*time.Second + time.Duration(x.GetNanoseconds())
+func (x *Duration) setSeconds(seconds *big.Rat) error {
+	if x == nil {
+		return fmt.Errorf("Duration: nil receiver")
+	}
+	seconds.Mul(seconds, big.NewRat(int64(time.Second), 1))
+	nanos, remainder := new(big.Int), new(big.Int)
+	nanos.QuoRem(seconds.Num(), seconds.Denom(), remainder)
+	// Round half away from zero without passing large integers through float64.
+	if remainder.Abs(remainder).Lsh(remainder, 1).Cmp(seconds.Denom()) >= 0 {
+		nanos.Add(nanos, big.NewInt(int64(seconds.Sign())))
+	}
+	whole, fraction := new(big.Int), new(big.Int)
+	whole.QuoRem(nanos, big.NewInt(int64(time.Second)), fraction)
+	if !whole.IsInt64() {
+		return fmt.Errorf("duration seconds out of range")
+	}
+	x.Seconds, x.Nanoseconds = whole.Int64(), int32(fraction.Int64())
+	return nil
+}
+
+func (x *Duration) totalNanoseconds() *big.Int {
+	nanos := new(big.Int).Mul(big.NewInt(x.GetSeconds()), big.NewInt(int64(time.Second)))
+	return nanos.Add(nanos, big.NewInt(int64(x.GetNanoseconds())))
+}
+
+func (x *Duration) ToDuration() (time.Duration, error) {
+	nanos := x.totalNanoseconds()
+	if !nanos.IsInt64() {
+		return 0, fmt.Errorf("duration exceeds time.Duration range: %s", x.Format())
+	}
+	return time.Duration(nanos.Int64()), nil
 }
 
 func (x *Duration) ToHours() float64 {
@@ -87,11 +105,9 @@ func (x *Duration) ToSeconds() float64 {
 	return float64(x.GetSeconds()) + float64(x.GetNanoseconds())/float64(time.Second)
 }
 
-func (x *Duration) ToNanoSeconds() int64 {
-	if x != nil {
-		return x.ToDuration().Nanoseconds()
-	}
-	return 0
+func (x *Duration) ToNanoSeconds() (int64, error) {
+	duration, err := x.ToDuration()
+	return int64(duration), err
 }
 
 func (x *Duration) Compare(d *Duration) int {
@@ -104,8 +120,5 @@ func (x *Duration) Compare(d *Duration) int {
 		}
 		return 1
 	}
-	if order := cmp.Compare(x.Seconds, d.Seconds); order != 0 {
-		return order
-	}
-	return cmp.Compare(x.Nanoseconds, d.Nanoseconds)
+	return x.totalNanoseconds().Cmp(d.totalNanoseconds())
 }

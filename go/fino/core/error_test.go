@@ -39,7 +39,7 @@ func TestErrorMatching(t *testing.T) {
 	typed := NewNotFoundError("missing")
 	require.True(t, IsNotFoundError(fmt.Errorf("lookup: %w", typed)))
 	require.True(t, IsError(typed))
-	require.Same(t, typed.ToError(), AsError(typed))
+	require.Same(t, typed, AsError(typed))
 	require.False(t, IsBadRequestError(typed))
 	require.False(t, errors.Is(typed, fmt.Errorf("target: %w", typed)))
 }
@@ -51,8 +51,8 @@ func TestNewErrorFromDoesNotShareCode(t *testing.T) {
 	require.Equal(t, NotFound.Name, second.Code.Name)
 	require.NotSame(t, NotFound, first.Code)
 	typed := NewNotFoundError("missing")
-	typed.ToError().Code.Name = "changed"
-	require.Equal(t, NotFound.Name, NewNotFoundError("missing").ToError().Code.Name)
+	typed.Code.Name = "changed"
+	require.Equal(t, NotFound.Name, NewNotFoundError("missing").Code.Name)
 }
 
 func TestErrorStatusCodeFallsBackToInternalServerError(t *testing.T) {

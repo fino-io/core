@@ -1,10 +1,16 @@
 package core
 
-import "time"
+import (
+	"fmt"
+	"math/big"
+	"strings"
+	"time"
+)
 
 func (x *Duration) Format() string {
 	if x != nil {
-		return x.ToDuration().String()
+		seconds := new(big.Rat).SetFrac(x.totalNanoseconds(), big.NewInt(int64(time.Second)))
+		return strings.TrimRight(strings.TrimRight(seconds.FloatString(9), "0"), ".") + "s"
 	}
 	return ""
 }
@@ -22,12 +28,18 @@ func ParseDuration(value string) (*Duration, error) {
 }
 
 func (x *Duration) Parse(value string) error {
-	if x != nil {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return err
+	if strings.HasSuffix(value, "s") {
+		if err := x.parseSeconds(strings.TrimSuffix(value, "s")); err == nil {
+			return nil
 		}
-		x.FromDuration(d)
 	}
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return err
+	}
+	if x == nil {
+		return fmt.Errorf("Duration.Parse: nil receiver")
+	}
+	x.FromDuration(d)
 	return nil
 }

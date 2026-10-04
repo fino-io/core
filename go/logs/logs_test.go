@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,11 +13,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 func TestLoggerWithFieldsOverrideOnce(t *testing.T) {
@@ -144,8 +139,8 @@ func TestPackageDefaultLoggerSwap(t *testing.T) {
 }
 
 func TestLevelHandlerServeHTTP(t *testing.T) {
-	level := zap.NewAtomicLevelAt(zapcore.InfoLevel)
-	handler := levelHandler(&level, "/level")
+	logger := NewLoggerWith(&Config{Level: "info"})
+	handler := logger.LevelHandler()
 
 	req := httptest.NewRequest(http.MethodGet, "/level", nil)
 	rec := httptest.NewRecorder()
@@ -160,48 +155,8 @@ func TestLevelHandlerServeHTTP(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, zapcore.DebugLevel, level.Level())
+	require.Equal(t, DebugLevel, logger.GetLevel())
 	require.Contains(t, rec.Body.String(), `"level":"debug"`)
-}
-
-func TestStartLevelServer(t *testing.T) {
-	level := zap.NewAtomicLevelAt(zapcore.InfoLevel)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-
-	svc := startLevelServerWithListener(&level, "/level", ln)
-	t.Cleanup(func() {
-		_ = svc.Close()
-	})
-
-	client := &http.Client{Timeout: 2 * time.Second}
-	url := "http://" + ln.Addr().String() + "/level"
-
-	require.Eventually(t, func() bool {
-		resp, err := client.Get(url)
-		if err != nil {
-			return false
-		}
-		defer resp.Body.Close()
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return false
-		}
-		return resp.StatusCode == http.StatusOK && strings.Contains(string(body), `"level":"info"`)
-	}, time.Second, 20*time.Millisecond)
-
-	req, err := http.NewRequest(http.MethodPut, url, strings.NewReader(`{"level":"debug"}`))
-	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Contains(t, string(body), `"level":"debug"`)
-	require.Equal(t, zapcore.DebugLevel, level.Level())
 }
 
 func TestFileOutput(t *testing.T) {
@@ -226,6 +181,9 @@ func TestFileOutput(t *testing.T) {
 		Message: "persisted",
 		Fields:  []Field{{Key: "user", Value: "bob"}},
 	})
+	require.NoError(t, logger.Sync())
+	require.NoError(t, logger.Close())
+	require.NoError(t, logger.Close())
 
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)

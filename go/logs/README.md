@@ -1,84 +1,58 @@
 # Logs
 
-`logs` 是当前的日志实现包，基于 `zap` 提供统一日志能力。
+日志运行时复用 Zap 和 Lumberjack，提供包级默认 logger、独立 Service、上下文字段、文件轮转及动态级别 handler。
 
-它提供两层 API：
-
-- 包级默认 logger：适合大多数业务代码，直接调用 `logs.Info`、`logs.Infow`、`logs.Errorf`
-- 独立 `Service`：适合需要独立 logger 实例的场景
-
-支持能力：
-
-- 控制台或文件输出
-- 结构化字段日志
-- 运行时动态调整日志级别
-- 兼容 `server_logs` 作为旧包路径封装层
-
-## 动态日志级别
-
-当同时配置 `levelPattern` 和 `levelPort` 时，logger 会启动一个 HTTP 服务，暴露 `zap.AtomicLevel.ServeHTTP`：
-
-- `GET <levelPattern>`：获取当前日志级别
-- `PUT <levelPattern>`：动态修改日志级别
-
-支持两种 `PUT` 请求体：
-
-- `application/json`，例如 `{"level":"debug"}`
-- `application/x-www-form-urlencoded`，例如 `level=debug`
-
-## 主要接口
-
-默认 logger：
+## 使用
 
 ```go
 logger := logs.NewLoggerWith(&logs.Config{
-  Level:  "info",
-  Encode: "console",
-  Output: "console",
+    Level: "info",
+    Encode: "json",
+    Output: "console",
 })
+defer logger.Close()
 
 logs.SetLogger(logger)
-logs.SetLogLevel(logs.DebugLevel)
 logs.Infow("service started", "name", "api")
-```
+logs.SetLogLevel(logs.DebugLevel)
 
-独立 `Service`：
-
-```go
 svc := logs.NewService(logger)
 svc.Infow("worker ready", "id", 7)
 ```
 
-携带请求上下文：
+`Logger` 提供 `SetLevel`、`GetLevel`、`With`、`Log`、`LevelHandler`、`Sync`、`Close`。
+
+`Service` 的配置不可变。`WithLogger` 和 `WithContext` 返回新实例，父实例保持原配置；全局 `SetLogger` 可以并发替换默认 logger。派生 logger 共享级别和输出资源。
 
 ```go
-ctx = logs.WithFields(ctx,
-  logs.Field{Key: "request_id", Value: requestID},
-  logs.Field{Key: "tenant_id", Value: tenantID},
+ctx := logs.WithFields(ctx,
+    logs.Field{Key: "request_id", Value: requestID},
 )
 logs.Ctx(ctx).Infow("request handled", "status", "ok")
+
+child := svc.WithLogger(otherLogger)
+child.Info("using another logger")
 ```
 
-`WithFields` 只应附加允许进入日志的字段，不要放入 token、密码、请求体等敏感信息。
-`Ctx` 会把 `ctx` 传到最底层 `Logger.Log`，便于上层适配 tracing 等能力；logger 不应保存
-或异步复用传入的 context。
+字段按初始配置、`Logger.With`、上下文、单次调用的顺序覆盖，同名字段只输出一次。`Ctx` 将 context 传到 `Logger.Log`。
 
-读取当前默认 logger：
+## 动态级别
+
+将 handler 挂载到应用已有的 HTTP 服务：
 
 ```go
-current := logs.DefaultLogger()
-_ = current.GetLevel()
+mux.Handle("/log/level", logger.LevelHandler())
 ```
 
-## 配置示例
+handler 直接复用 `zap.AtomicLevel`：GET 读取级别，PUT 更新级别，支持 JSON `{"level":"debug"}` 和表单 `level=debug`。服务的绑定地址、中间件、超时和关闭过程由应用管理。日志配置不再包含 `levelPort`、`levelPattern`，创建 logger 不启动 HTTP 服务。
+
+## 文件与关闭
 
 ```yaml
 logs:
   level: info
   encode: console
-  output: console
-  levelPattern: /log/level
-  levelPort: 22001
+  output: file
   file:
     path: ./log/app.log
     maxSize: 100
@@ -87,33 +61,6 @@ logs:
     encode: json
 ```
 
-`output: console` 输出到控制台；需要文件输出时设为 `file`。`file` 中的配置控制日志路径和轮转。
-文件输出未指定 `file.encode` 时使用 JSON。
+文件未指定编码时使用 JSON。`Sync` 转发底层输出的同步操作，`Close` 关闭 logger 拥有的轮转文件，并且可以重复调用；它不关闭控制台或调用方提供的 writer。Lumberjack 直接写文件，不需要额外缓冲层。
 
-字段按初始配置、`Logger.With`、上下文、单次调用的顺序覆盖；同名字段只输出一次。
-`Logger.With` 和 `Service.WithContext` 创建派生对象，不修改父级字段。
-
-## 动态级别接口
-
-如果配置了动态级别接口，可通过 HTTP 调整级别：
-
-```bash
-# 查看当前级别
-curl http://127.0.0.1:22001/log/level
-
-# 设置为 debug（JSON）
-curl -X PUT \
-  -H "Content-Type: application/json" \
-  -d '{"level":"debug"}' \
-  http://127.0.0.1:22001/log/level
-
-# 设置为 warn（表单）
-curl -X PUT \
-  -d "level=warn" \
-  http://127.0.0.1:22001/log/level
-```
-
-说明：
-
-- 创建带 `levelPattern` 和 `levelPort` 的 logger 时，会启动对应的 HTTP 服务
-- 当前版本不会在 logger 替换时自动关闭旧的 level server
+派生 logger 共享文件资源，应在最后一个使用者停止记录后关闭。替换全局 logger 不自动关闭旧实例，关闭时机由应用明确管理。

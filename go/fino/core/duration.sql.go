@@ -3,12 +3,13 @@ package core
 import (
 	"database/sql/driver"
 	"fmt"
+	"strings"
 )
 
 // Value Implement driver.Valuer and sql.Scanner interfaces on Duration
 func (x *Duration) Value() (driver.Value, error) {
 	if x != nil {
-		return x.ToSeconds(), nil
+		return strings.TrimSuffix(x.Format(), "s"), nil
 	}
 	return nil, nil
 }
@@ -24,7 +25,7 @@ func (x *Duration) Scan(src any) error {
 	case int64:
 		x.Seconds, x.Nanoseconds = duration, 0
 	case float64:
-		return x.setSeconds(duration)
+		return x.FromSeconds(duration)
 	case []byte:
 		return x.Scan(string(duration))
 	case string:
@@ -36,5 +37,5 @@ func (x *Duration) Scan(src any) error {
 }
 
 func (x *Duration) GormDataType() string {
-	return "float"
+	return "text"
 }

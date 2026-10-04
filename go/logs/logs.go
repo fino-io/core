@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 )
@@ -79,14 +80,17 @@ func (s *Service) Logger() Logger {
 	return s.logger
 }
 
-func (s *Service) SetLogger(logger Logger) {
-	if s == nil {
-		return
-	}
+// WithLogger returns a service with independent, immutable logger configuration.
+func (s *Service) WithLogger(logger Logger) *Service {
 	if logger == nil {
 		logger = newNopLogger()
 	}
-	s.logger = logger
+	if s == nil {
+		return NewService(logger)
+	}
+	clone := *s
+	clone.logger = logger
+	return &clone
 }
 
 func (s *Service) SetLogLevel(level Level) {
@@ -302,3 +306,6 @@ func (nopLogger) SetLevel(Level)             {}
 func (nopLogger) GetLevel() Level            { return InfoLevel }
 func (nopLogger) With(...Field) Logger       { return nopLogger{} }
 func (nopLogger) Log(context.Context, Entry) {}
+func (nopLogger) Sync() error                { return nil }
+func (nopLogger) Close() error               { return nil }
+func (nopLogger) LevelHandler() http.Handler { return http.NotFoundHandler() }

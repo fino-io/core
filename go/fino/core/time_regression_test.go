@@ -12,18 +12,20 @@ import (
 
 func TestDurationBoundaryConversions(t *testing.T) {
 	for _, seconds := range []float64{1.9999999996, -1.9999999996} {
-		duration := NewDuration(seconds)
+		duration := newTestDuration(t, seconds)
 		require.Equal(t, int32(0), duration.Nanoseconds)
 		require.Equal(t, math.Round(seconds), duration.ToSeconds())
 	}
-	require.Zero(t, (*Duration)(nil).ToDuration())
+	zero, err := (*Duration)(nil).ToDuration()
+	require.NoError(t, err)
+	require.Zero(t, zero)
 	large := &Duration{Seconds: 10000000000}
 	require.Equal(t, float64(10000000000), large.ToSeconds())
 	require.Equal(t, float64(10000000000)/3600, large.ToHours())
 }
 
 func TestTimeSQLScan(t *testing.T) {
-	duration := NewDuration(2.5)
+	duration := newTestDuration(t, 2.5)
 	for _, input := range []any{float64(1.5), "1.5", []byte("1.5")} {
 		require.NoError(t, duration.Scan(input))
 		require.Equal(t, 1.5, duration.ToSeconds())
@@ -61,7 +63,7 @@ func TestTimeJSONDecodeValidation(t *testing.T) {
 	require.NoError(t, jsoniter.UnmarshalFromString(`null`, timestamp))
 	require.Zero(t, timestamp.Seconds)
 
-	duration := NewDuration(1)
+	duration := newTestDuration(t, 1)
 	for _, input := range []string{`true`, `{}`, `1e999`} {
 		require.Error(t, jsoniter.UnmarshalFromString(input, duration))
 	}
@@ -72,7 +74,7 @@ func TestTimeJSONDecodeValidation(t *testing.T) {
 func TestDurationRejectsOverflow(t *testing.T) {
 	for _, input := range []string{`1e30`, `-1e30`, `9223372036854775808`, `-9223372036854775809`} {
 		t.Run(input, func(t *testing.T) {
-			duration := NewDuration(2.5)
+			duration := newTestDuration(t, 2.5)
 			require.Error(t, jsoniter.UnmarshalFromString(input, duration))
 			require.Equal(t, 2.5, duration.ToSeconds())
 			require.Error(t, duration.Scan(input))
@@ -80,7 +82,7 @@ func TestDurationRejectsOverflow(t *testing.T) {
 		})
 	}
 	for _, input := range []float64{math.NaN(), math.Inf(1), math.Inf(-1), 1e30, -1e30} {
-		duration := NewDuration(2.5)
+		duration := newTestDuration(t, 2.5)
 		require.Error(t, duration.Scan(input))
 		require.Equal(t, 2.5, duration.ToSeconds())
 	}
@@ -91,7 +93,7 @@ func TestDurationIntegerPrecision(t *testing.T) {
 		t.Run(input, func(t *testing.T) {
 			want, err := strconv.ParseInt(input, 10, 64)
 			require.NoError(t, err)
-			duration := NewDuration(2.5)
+			duration := newTestDuration(t, 2.5)
 			require.NoError(t, jsoniter.UnmarshalFromString(input, duration))
 			require.Equal(t, want, duration.Seconds)
 			require.Zero(t, duration.Nanoseconds)

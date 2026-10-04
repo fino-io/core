@@ -22,6 +22,9 @@ func NewObject() *Object {
 // The map keys must be valid UTF-8.
 // The map values are converted using NewValue.
 func NewObjectFromMap(m map[string]any) (*Object, error) {
+	if m == nil {
+		return &Object{}, nil
+	}
 	x := &Object{Vals: make(map[string]*Value, len(m))}
 	for k, v := range m {
 		if !utf8.ValidString(k) {
@@ -96,7 +99,7 @@ func (x *Object) To(val any) error {
 		return fmt.Errorf("Object.To: expected a non-nil pointer, got %T", val)
 	}
 
-	marshal, err := jsoniter.ConfigFastest.Marshal(x)
+	marshal, err := jsoniter.ConfigFastest.Marshal(x.AsMap())
 	if err != nil {
 		return err
 	}
@@ -104,32 +107,28 @@ func (x *Object) To(val any) error {
 	return jsoniter.ConfigFastest.Unmarshal(marshal, val)
 }
 
-// From replaces the object with the input's JSON representation, preserving
-// JSON field names, omitempty, and registered codecs. JSON null clears the object;
-// other non-object representations return an error without changing the receiver.
-// Use Merge to combine objects and Clone to preserve Protobuf types and metadata.
+// From replaces the object with a detached copy of the input.
+// Structs use JSON field names, omitempty, and registered codecs.
+// Null clears the object; invalid inputs leave it unchanged.
 func (x *Object) From(val any) error {
 	if x == nil {
 		return nil
 	}
 
-	data, err := jsoniter.ConfigFastest.Marshal(val)
+	value, err := NewValue(val)
 	if err != nil {
 		return err
 	}
 
-	var object Object
-	if err := jsoniter.ConfigFastest.Unmarshal(data, &object); err != nil {
-		return err
+	if value.GetKind() == ValueKind_VALUE_KIND_NULL {
+		x.Vals = nil
+		return nil
 	}
-	x.Vals = object.Vals
+	if value.GetKind() != ValueKind_VALUE_KIND_OBJECT {
+		return fmt.Errorf("Object.From: expected an object, got %T", val)
+	}
+	x.Vals = value.GetObject().Clone().GetVals()
 	return nil
-}
-
-// From2 is a compatibility alias for From.
-// Deprecated: use From instead.
-func (x *Object) From2(val any) error {
-	return x.From(val)
 }
 
 func (x *Object) IsEmpty() bool {
@@ -334,9 +333,36 @@ func (x *Object) Merge(o *Object) *Object {
 // Clone returns a deep copy, including nested objects, arrays, and byte slices.
 func (x *Object) Clone() *Object {
 	if x != nil {
-		return proto.Clone(x).(*Object)
+		clone := proto.Clone(x).(*Object)
+		preserveObjectCollections(x, clone)
+		return clone
 	}
 	return x
+}
+
+// Protobuf treats nil and empty collections alike; JSON distinguishes them.
+func preserveObjectCollections(source, clone *Object) {
+	if source.Vals != nil && clone.Vals == nil {
+		clone.Vals = make(map[string]*Value)
+	}
+	for key, value := range source.Vals {
+		preserveValueCollections(value, clone.Vals[key])
+	}
+}
+
+func preserveValueCollections(source, clone *Value) {
+	if object := source.GetObject(); object != nil {
+		preserveObjectCollections(object, clone.GetObject())
+	}
+	if values := source.GetValuesValue(); values != nil && values.Vals != nil {
+		copied := clone.GetValuesValue()
+		if copied.Vals == nil {
+			copied.Vals = []*Value{}
+		}
+		for i, value := range values.Vals {
+			preserveValueCollections(value, copied.Vals[i])
+		}
+	}
 }
 
 func (x *Object) Delete(key string) *Object {
@@ -344,18 +370,22 @@ func (x *Object) Delete(key string) *Object {
 	return x
 }
 
-func (x *Object) ToLowerCamelKeys() *Object {
-	obj := NewObject()
-	for k, v := range x.GetVals() {
-		obj.SetValue(strcase.ToLowerCamel(k), v)
-	}
-	return obj
+func (x *Object) ToLowerCamelKeys() (*Object, error) {
+	return x.convertKeys(strcase.ToLowerCamel)
 }
 
-func (x *Object) ToSnakeKeys() *Object {
+func (x *Object) ToSnakeKeys() (*Object, error) {
+	return x.convertKeys(strcase.ToSnake)
+}
+
+func (x *Object) convertKeys(convert func(string) string) (*Object, error) {
 	obj := NewObject()
 	for k, v := range x.GetVals() {
-		obj.SetValue(strcase.ToSnake(k), v)
+		key := convert(k)
+		if _, exists := obj.Vals[key]; exists {
+			return nil, fmt.Errorf("duplicate key after conversion: %q", key)
+		}
+		obj.SetValue(key, v)
 	}
-	return obj
+	return obj, nil
 }

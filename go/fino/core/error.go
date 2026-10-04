@@ -4,9 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func NewError(code *ErrorCode, message string) *Error {
+	if code != nil {
+		code = proto.Clone(code).(*ErrorCode)
+	}
 	return &Error{
 		Code:    code,
 		Message: message,
@@ -26,8 +31,9 @@ func NewFormattedErrorFrom(code int32, format string, arguments ...any) *Error {
 }
 
 func (e *Error) Is(target error) bool {
-	_, ok := target.(*Error)
-	return ok
+	other, ok := target.(*Error)
+	return e != nil && ok && other != nil && (other.Code == nil ||
+		e.Code != nil && e.Code.Code == other.Code.Code && e.Code.Domain == other.Code.Domain)
 }
 
 func IsError(err error) bool {
@@ -65,10 +71,14 @@ func (e *Error) StatusCode() int {
 	return http.StatusInternalServerError
 }
 
-func (e *Error) AddDetail(detail any) *Error {
-	if e != nil {
-		v, _ := NewValue(detail)
-		e.Details = append(e.Details, v)
+func (e *Error) AddDetail(detail any) error {
+	if e == nil {
+		return fmt.Errorf("Error.AddDetail: nil receiver")
 	}
-	return e
+	v, err := NewValue(detail)
+	if err != nil {
+		return err
+	}
+	e.Details = append(e.Details, v)
+	return nil
 }

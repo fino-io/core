@@ -13,7 +13,7 @@ import (
 
 func TestQueryUnmarshalKeepsRawValues(t *testing.T) {
 	raw := []string{`a"b`, `a\b`, "a\nb", `"quoted"`}
-	query := NewUrlQuery("foo", raw, 1, "ignored")
+	query := newTestQuery(t, "foo", raw)
 	for i := 0; i < 2; i++ {
 		var values []string
 		require.NoError(t, query.Unmarshal("foo", &values))
@@ -24,7 +24,8 @@ func TestQueryUnmarshalKeepsRawValues(t *testing.T) {
 
 func TestQueryZeroValue(t *testing.T) {
 	query := &Url_Query{}
-	query.Add("a", 1).Set("b", "two")
+	require.NoError(t, query.Add("a", 1))
+	require.NoError(t, query.Set("b", "two"))
 	require.Equal(t, []string{"1"}, query.Vals["a"].Vals)
 	require.Equal(t, []string{"two"}, query.Vals["b"].Vals)
 }
@@ -32,7 +33,7 @@ func TestQueryZeroValue(t *testing.T) {
 func TestUnmarshalParamInvalidDestination(t *testing.T) {
 	for _, value := range []any{nil, (*string)(nil), "not a pointer", 1} {
 		require.Error(t, UnmarshalParam("value", value))
-		require.Error(t, NewUrlQuery("key", "value").Unmarshal("key", value))
+		require.Error(t, newTestQuery(t, "key", "value").Unmarshal("key", value))
 	}
 }
 
@@ -113,9 +114,8 @@ func TestQuery_Add(t *testing.T) {
 			x := &Url_Query{
 				Vals: tt.Vals,
 			}
-			if got := x.Add(tt.args.k, tt.args.v); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Add() = %v, want %v", got, tt.want)
-			}
+			require.NoError(t, x.Add(tt.args.k, tt.args.v))
+			require.Equal(t, tt.want, x)
 		})
 	}
 }
@@ -133,9 +133,9 @@ func TestQuery_Set(t *testing.T) {
 	}{
 		{name: "empty", Vals: map[string]*StringValues{}, args: args{}, want: &Url_Query{Vals: map[string]*StringValues{}}},
 		{name: "set-nil", Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}, args: args{}, want: &Url_Query{Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}}},
-		{name: "set-empty-value", Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}, args: args{k: "key1"}, want: &Url_Query{Vals: map[string]*StringValues{"key1": {Vals: []string{}}}}},
+		{name: "set-empty-value", Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}, args: args{k: "key1"}, want: &Url_Query{Vals: map[string]*StringValues{"key1": {}}}},
 		{name: "set-nonempty-value", Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}, args: args{k: "key1", v: "v11"}, want: &Url_Query{Vals: map[string]*StringValues{"key1": {Vals: []string{"v11"}}}}},
-		{name: "set-other-empty-key", Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}, args: args{k: "key2"}, want: &Url_Query{Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}, "key2": {Vals: []string{}}}}},
+		{name: "set-other-empty-key", Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}, args: args{k: "key2"}, want: &Url_Query{Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}, "key2": {}}}},
 		{name: "set-other-nonempty-key", Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}}, args: args{k: "key2", v: "v2"}, want: &Url_Query{Vals: map[string]*StringValues{"key1": {Vals: []string{"v1"}}, "key2": {Vals: []string{"v2"}}}}},
 	}
 	for _, tt := range tests {
@@ -143,9 +143,8 @@ func TestQuery_Set(t *testing.T) {
 			x := &Url_Query{
 				Vals: tt.Vals,
 			}
-			if got := x.Set(tt.args.k, tt.args.v); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Set() = %v, want %v", got, tt.want)
-			}
+			require.NoError(t, x.Set(tt.args.k, tt.args.v))
+			require.Equal(t, tt.want, x)
 		})
 	}
 }
@@ -166,9 +165,9 @@ func TestQuery_Unmarshal(t *testing.T) {
 		{name: "string-slice-5", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{`["bar", "bba"]`}}}}, typ: reflect.TypeOf([]string{}), k: "foo", want: []string{"bar", "bba"}, wantErr: false},
 		{name: "int-slice-1", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123", "234"}}}}, k: "foo", typ: reflect.TypeOf([]int32{}), want: []int32{123, 234}, wantErr: false},
 		{name: "int-slice-2", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123,234"}}}}, k: "foo", typ: reflect.TypeOf([]int32{}), want: []int32{123, 234}, wantErr: false},
-		{name: "string-array", query: NewUrlQuery("foo", []string{"bar", "bba"}), k: "foo", typ: reflect.TypeOf([2]string{}), want: [2]string{"bar", "bba"}},
-		{name: "timestamp", query: NewUrlQuery("foo", TimestampString1), k: "foo", typ: reflect.TypeOf(Timestamp{}), want: Timestamp{Seconds: Timestamp1}},
-		{name: "timestamp-slice", query: NewUrlQuery("foo", []string{TimestampString1, TimestampString2}), k: "foo", typ: reflect.TypeOf([]*Timestamp{}), want: []*Timestamp{{Seconds: Timestamp1}, {Seconds: Timestamp1 + 60}}},
+		{name: "string-array", query: newTestQuery(t, "foo", []string{"bar", "bba"}), k: "foo", typ: reflect.TypeOf([2]string{}), want: [2]string{"bar", "bba"}},
+		{name: "timestamp", query: newTestQuery(t, "foo", TimestampString1), k: "foo", typ: reflect.TypeOf(Timestamp{}), want: Timestamp{Seconds: Timestamp1}},
+		{name: "timestamp-slice", query: newTestQuery(t, "foo", []string{TimestampString1, TimestampString2}), k: "foo", typ: reflect.TypeOf([]*Timestamp{}), want: []*Timestamp{{Seconds: Timestamp1}, {Seconds: Timestamp1 + 60}}},
 		// {name: "int32Value-slice-1", query: &Url_Query{Vals: map[string]*StringValues{"foo": {Vals: []string{"123,234"}}}}, k: "foo", typ: reflect.TypeOf([]*Int32Value{}), want: []*Int32Value{{Value: 123}, {Value: 234}}, wantErr: false},
 	}
 	for _, tt := range tests {

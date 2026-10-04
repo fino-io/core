@@ -3,42 +3,6 @@
 
 package core
 
-import (
-	"strconv"
-	"unsafe"
-
-	jsoniter "github.com/json-iterator/go"
-)
-
 func init() {
-	RegisterJSONTypeDecoder("core.Month", &MonthCodec{})
-	RegisterJSONTypeEncoder("core.Month", &MonthCodec{})
-}
-
-type MonthCodec struct{}
-
-func (codec *MonthCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-	any := iter.ReadAny()
-	e := (*Month)(ptr)
-	if any.ValueType() == jsoniter.StringValue || any.ValueType() == jsoniter.NumberValue {
-		text := any.ToString()
-		if any.ValueType() == jsoniter.NumberValue {
-			text = strconv.FormatFloat(any.ToFloat64(), 'f', -1, 64)
-		}
-		if err := e.Parse(text); err != nil {
-			iter.ReportError("MonthCodec.Decode", err.Error())
-		}
-	} else if any.ValueType() != jsoniter.NilValue {
-		iter.ReportError("MonthCodec.Decode", "expected enum name or integer")
-	}
-}
-
-func (codec *MonthCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
-	e := (*Month)(ptr)
-	stream.WriteString(e.Format())
-}
-
-func (codec *MonthCodec) IsEmpty(ptr unsafe.Pointer) bool {
-	e := (*Month)(ptr)
-	return e == nil || *e == 0
+	RegisterJSONEnum[Month]("core.Month", Month_name, Month_value)
 }

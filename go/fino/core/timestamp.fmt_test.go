@@ -18,5 +18,5 @@ func TestTimestamp_Format(t *testing.T) {
 	str := ts.Format()
 
 	assert.NotEmpty(t, str)
-	assert.Equal(t, "2025-10-06T20:40:16.995+08:00", str)
+	assert.Equal(t, "2025-10-06T12:40:16.995717Z", str)
 }

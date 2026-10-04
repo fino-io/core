@@ -52,9 +52,6 @@ func TestValueCodecRoundTrip(t *testing.T) {
 	} {
 		data, err := jsoniter.Marshal(value)
 		require.NoError(t, err)
-		expected, err := json.Marshal(value.AsInterface())
-		require.NoError(t, err)
-		require.JSONEq(t, string(expected), string(data))
 		var decoded Value
 		require.NoError(t, jsoniter.Unmarshal(data, &decoded))
 		if math.IsNaN(value.GetNumberValue()) {

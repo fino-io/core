@@ -1,13 +1,11 @@
 package logs
 
 type Config struct {
-	InitFields   map[string]any `json:"initFields"`
-	Level        string         `json:"level" default:"debug"`    // debug,info,warn,error,fatal
-	Encode       string         `json:"encode" default:"console"` // console,json
-	LevelPattern string         `json:"levelPattern" default:""`
-	LevelPort    int            `json:"levelPort" default:"0"`
-	Output       string         `json:"output" default:"console"` // console,file
-	File         FileConfig     `json:"file"`
+	InitFields map[string]any `json:"initFields"`
+	Level      string         `json:"level" default:"debug"`    // debug,info,warn,error,fatal
+	Encode     string         `json:"encode" default:"console"` // console,json
+	Output     string         `json:"output" default:"console"` // console,file
+	File       FileConfig     `json:"file"`
 }
 
 type FileConfig struct {

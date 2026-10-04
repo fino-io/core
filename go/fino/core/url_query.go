@@ -11,18 +11,24 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-// NewUrlQuery ignores non-string keys and an incomplete trailing pair.
-func NewUrlQuery(kvs ...any) *Url_Query {
+func NewUrlQuery(kvs ...any) (*Url_Query, error) {
+	if len(kvs)%2 != 0 {
+		return nil, fmt.Errorf("query requires key/value pairs")
+	}
 	query := &Url_Query{
 		Vals: make(map[string]*StringValues),
 	}
 
 	for i := 0; i < len(kvs)-1; i += 2 {
-		if key, ok := kvs[i].(string); ok {
-			query.Add(key, kvs[i+1])
+		key, ok := kvs[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("query key must be a string: %T", kvs[i])
+		}
+		if err := query.Add(key, kvs[i+1]); err != nil {
+			return nil, err
 		}
 	}
-	return query
+	return query, nil
 }
 
 func NewUrlQueryFrom(values url.Values) *Url_Query {
@@ -53,7 +59,11 @@ func (x *Url_Query) Has(k string) bool {
 	return false
 }
 
-func (x *Url_Query) Add(k string, v any) *Url_Query {
+func (x *Url_Query) Add(k string, v any) error {
+	values, err := queryValueFormat(v)
+	if err != nil {
+		return err
+	}
 	k = strings.TrimSpace(k)
 	if x != nil && k != "" {
 		if x.Vals == nil {
@@ -62,22 +72,26 @@ func (x *Url_Query) Add(k string, v any) *Url_Query {
 		if x.Vals[k] == nil {
 			x.Vals[k] = &StringValues{}
 		}
-		x.Vals[k].Vals = append(x.Vals[k].Vals, queryValueFormat(v)...)
+		x.Vals[k].Vals = append(x.Vals[k].Vals, values...)
 	}
-	return x
+	return nil
 }
 
-func (x *Url_Query) Set(k string, v any) *Url_Query {
+func (x *Url_Query) Set(k string, v any) error {
+	values, err := queryValueFormat(v)
+	if err != nil {
+		return err
+	}
 	k = strings.TrimSpace(k)
 	if x != nil && k != "" {
 		if x.Vals == nil {
 			x.Vals = make(map[string]*StringValues)
 		}
 		x.Vals[k] = &StringValues{
-			Vals: queryValueFormat(v),
+			Vals: values,
 		}
 	}
-	return x
+	return nil
 }
 
 func (x *Url_Query) Del(k string) *Url_Query {
@@ -88,16 +102,33 @@ func (x *Url_Query) Del(k string) *Url_Query {
 	return x
 }
 
-func queryValueFormat(val any) []string {
+func queryValueFormat(val any) ([]string, error) {
+	if val == nil {
+		return nil, nil
+	}
 	switch v := val.(type) {
 	case []string:
-		return slices.Clone(v)
-	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64,
-		float32, float64, string, ToStringConverter, Formatter:
-		return []string{ToString(val)}
-	default:
-		return []string{}
+		return slices.Clone(v), nil
+	case ToStringConverter, Formatter:
+		return []string{ToString(val)}, nil
 	}
+	v := reflect.ValueOf(val)
+	switch v.Kind() {
+	case reflect.Bool, reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
+		return []string{ToString(val)}, nil
+	case reflect.Slice, reflect.Array:
+		values := make([]string, 0, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			element, err := queryValueFormat(v.Index(i).Interface())
+			if err != nil {
+				return nil, err
+			}
+			values = append(values, element...)
+		}
+		return values, nil
+	}
+	return nil, fmt.Errorf("unsupported query value: %T", val)
 }
 
 // Unmarshal

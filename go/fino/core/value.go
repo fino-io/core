@@ -1,7 +1,7 @@
 package core
 
 import (
-	"encoding/base64"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -17,8 +17,7 @@ const ValueTypeFullName = "core.Value"
 // NewValue converts Go scalars, maps, slices, arrays, and structs into Value.
 // Integers retain int64/uint64 precision; decimal JSON numbers use float64.
 // Structs and typed collections use jsoniter's registered codecs and JSON tags.
-// Nil pointers become null. For compatibility, []byte becomes a base64 string;
-// use NewBytesValue to retain the binary kind and its b64. JSON representation.
+// Nil pointers become null. Byte slices retain their binary kind.
 func NewValue(val any) (*Value, error) {
 	switch v := val.(type) {
 	case nil:
@@ -66,14 +65,17 @@ func NewValue(val any) (*Value, error) {
 			return NewNullValue(), nil
 		}
 		return NewValuesValue(v), nil
+	case map[string]*Value:
+		return NewMapValue(v), nil
+	case []*Value:
+		return NewArrayValue(v...), nil
 	case string:
 		if !utf8.ValidString(v) {
 			return nil, fmt.Errorf("invalid UTF-8 in string: %q", v)
 		}
 		return NewStringValue(v), nil
 	case []byte:
-		s := base64.StdEncoding.EncodeToString(v)
-		return NewStringValue(s), nil
+		return NewBytesValue(v), nil
 	case map[string]any:
 		v2, err := NewObjectFromMap(v)
 		if err != nil {
@@ -100,11 +102,7 @@ func NewValue(val any) (*Value, error) {
 			if err != nil {
 				return nil, err
 			}
-			var value Value
-			if err := jsoniter.Unmarshal(data, &value); err != nil {
-				return nil, err
-			}
-			return &value, nil
+			return valueFromJSON(data)
 		case reflect.Bool:
 			return NewBoolValue(rv.Bool()), nil
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -119,6 +117,17 @@ func NewValue(val any) (*Value, error) {
 			return nil, fmt.Errorf("invalid type: %T", v)
 		}
 	}
+}
+
+// valueFromJSON reads ordinary Go JSON without interpreting Value wire prefixes.
+func valueFromJSON(data []byte) (*Value, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	return NewValue(value)
 }
 
 // NewNullValue constructs a new null Value.
@@ -311,13 +320,8 @@ func NewObjectArrayValue(vals ...*Object) *Value {
 	return &Value{Val: &Value_ValuesValue{ValuesValue: &Values{Vals: _vals}}}
 }
 
-// AsInterface converts x to a general-purpose Go interface.
-//
-// jsoniter.Marshal(x) and encoding/json.Marshal(x.AsInterface()) produce
-// semantically equivalent JSON (assuming no errors occur).
-//
-// Floating-point values (i.e., "NaN", "Infinity", and "-Infinity") are
-// converted as strings to remain compatible with MarshalJSON.
+// AsInterface returns native Go values, including []byte and non-finite floats.
+// Use the Value JSON codec when the wire representation is required.
 func (x *Value) AsInterface() any {
 	switch v := x.GetVal().(type) {
 	case *Value_NullValue:
@@ -329,20 +333,11 @@ func (x *Value) AsInterface() any {
 	case *Value_NegativeValue:
 		return negativeValueToInt64(v.NegativeValue)
 	case *Value_NumberValue:
-		switch {
-		case math.IsNaN(v.NumberValue):
-			return "NaN"
-		case math.IsInf(v.NumberValue, +1):
-			return "Infinity"
-		case math.IsInf(v.NumberValue, -1):
-			return "-Infinity"
-		default:
-			return v.NumberValue
-		}
+		return v.NumberValue
 	case *Value_StringValue:
 		return v.StringValue
 	case *Value_BytesValue:
-		return Base64Prefix + base64.StdEncoding.EncodeToString(v.BytesValue)
+		return v.BytesValue
 	case *Value_ObjectValue:
 		if v.ObjectValue.GetVals() == nil {
 			return nil

@@ -3,16 +3,13 @@ package core
 import (
 	"fmt"
 	"strconv"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func NewErrorCode(code int32) *ErrorCode {
 	if ec, ok := errorCodeIndex[code]; ok {
-		return &ErrorCode{
-			Code:           ec.Code,
-			Name:           ec.Name,
-			Description:    ec.Description,
-			HttpStatusCode: ec.HttpStatusCode,
-		}
+		return proto.Clone(ec).(*ErrorCode)
 	}
 	return &ErrorCode{Code: code}
 }
@@ -27,17 +24,16 @@ func ParseErrorCode(code string) (*ErrorCode, error) {
 }
 
 func (x *ErrorCode) Parse(code string) error {
-	if x != nil && len(code) > 0 {
-		v, err := strconv.ParseInt(code, 10, 32)
-		if err != nil {
-			return fmt.Errorf("failed to parse error code %w", err)
-		}
-		parsed := NewErrorCode(int32(v))
-		x.Code = parsed.Code
-		x.Name = parsed.Name
-		x.Description = parsed.Description
-		x.HttpStatusCode = parsed.HttpStatusCode
+	if x == nil {
+		return fmt.Errorf("ErrorCode.Parse: nil receiver")
 	}
+	v, err := strconv.ParseInt(code, 10, 32)
+	if err != nil {
+		return fmt.Errorf("failed to parse error code %w", err)
+	}
+	parsed := NewErrorCode(int32(v))
+	proto.Reset(x)
+	proto.Merge(x, parsed)
 	return nil
 }
 

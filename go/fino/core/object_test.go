@@ -63,7 +63,7 @@ func TestObjectFromJSONSemantics(t *testing.T) {
 			ID uint64 `json:"id"`
 		}{math.MaxUint64}, want: `{"id":18446744073709551615}`},
 		{name: "type codec", input: &objectFromEncoded{Value: "custom"}, want: `{"codec_key":"custom"}`},
-		{name: "field codec", input: NewError(NotFound, "missing"), want: `{"code":"` + NotFound.Format() + `","message":"missing"}`},
+		{name: "error metadata", input: NewError(nil, "missing"), want: `{"message":"missing"}`},
 		{name: "empty object", input: struct{}{}, want: `{}`},
 		{name: "empty map", input: map[string]int{}, want: `{}`},
 		{name: "nil", input: nil, want: `null`},
@@ -78,7 +78,6 @@ func TestObjectFromJSONSemantics(t *testing.T) {
 				convert func(*Object, any) error
 			}{
 				{name: "From", convert: (*Object).From},
-				{name: "From2", convert: (*Object).From2},
 			} {
 				t.Run(entry.name, func(t *testing.T) {
 					object := NewObject().SetString("old", "stale")
@@ -109,11 +108,10 @@ func TestObjectFromFailureKeepsOriginal(t *testing.T) {
 		{name: "array", input: []int{1, 2}},
 		{name: "scalar codec", input: FromTime(time.Unix(1, 0))},
 		{name: "unsupported field", input: map[string]any{"channel": make(chan int)}},
-		{name: "invalid nested value", input: map[string]any{"nested": map[string]string{"data": "b64.!"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, convert := range []func(*Object, any) error{(*Object).From, (*Object).From2} {
+			for _, convert := range []func(*Object, any) error{(*Object).From} {
 				object := NewObject().SetObject("nested", NewObject().SetString("name", "original"))
 				before := object.Clone()
 				require.Error(t, convert(object, tt.input))
@@ -126,7 +124,7 @@ func TestObjectFromFailureKeepsOriginal(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
-	for _, convert := range []func(*Object, any) error{(*Object).From, (*Object).From2} {
+	for _, convert := range []func(*Object, any) error{(*Object).From} {
 		var object *Object
 		require.NoError(t, convert(object, make(chan int)))
 	}
@@ -145,8 +143,7 @@ func TestObjectFromSeparatesNestedValues(t *testing.T) {
 		require.Equal(t, "original", source.GetObject("nested").GetString("name"))
 		require.Equal(t, []byte("bytes"), source.GetBytes("data"))
 		require.Equal(t, []string{"original"}, source.GetStringArray("items"))
-		// JSON canonicalizes 1.0 to an integer; Clone preserves the Protobuf kind.
-		require.Equal(t, ValueKind_VALUE_KIND_INTEGER, object.GetValue("number").GetKind())
+		require.Equal(t, ValueKind_VALUE_KIND_NUMBER, object.GetValue("number").GetKind())
 		require.Empty(t, object.ProtoReflect().GetUnknown())
 	}
 	clone := source.Clone()

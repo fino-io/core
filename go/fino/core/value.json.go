@@ -15,6 +15,15 @@ import (
 )
 
 const Base64Prefix = "b64."
+const StringPrefix = "str."
+
+func jsonString(value string) string {
+	if strings.HasPrefix(value, Base64Prefix) || strings.HasPrefix(value, StringPrefix) ||
+		value == "NaN" || value == "Infinity" || value == "-Infinity" {
+		return StringPrefix + value
+	}
+	return value
+}
 
 func init() {
 	RegisterJSONTypeDecoder(ValueTypeFullName, &ValueCodec{})
@@ -40,6 +49,9 @@ func (codec *ValueCodec) DecodeAny(a jsoniter.Any) (*Value, error) {
 		return parseNumberValue(a.ToString())
 	case jsoniter.StringValue:
 		str := a.ToString()
+		if strings.HasPrefix(str, StringPrefix) {
+			return NewStringValue(strings.TrimPrefix(str, StringPrefix)), nil
+		}
 		if strings.HasPrefix(str, Base64Prefix) {
 			ds, err := base64.StdEncoding.DecodeString(str[len(Base64Prefix):])
 			if err != nil {
@@ -142,13 +154,18 @@ func (codec *ValueCodec) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 	case *Value_NegativeValue:
 		stream.WriteInt64(val.GetInt64())
 	case *Value_NumberValue:
-		if math.IsNaN(v.NumberValue) || math.IsInf(v.NumberValue, 0) {
-			stream.WriteVal(val.AsInterface())
-		} else {
+		switch {
+		case math.IsNaN(v.NumberValue):
+			stream.WriteString("NaN")
+		case math.IsInf(v.NumberValue, 1):
+			stream.WriteString("Infinity")
+		case math.IsInf(v.NumberValue, -1):
+			stream.WriteString("-Infinity")
+		default:
 			stream.WriteFloat64(v.NumberValue)
 		}
 	case *Value_StringValue:
-		stream.WriteString(v.StringValue)
+		stream.WriteString(jsonString(v.StringValue))
 	case *Value_BytesValue:
 		stream.WriteString(Base64Prefix + base64.StdEncoding.EncodeToString(v.BytesValue))
 	case *Value_ValuesValue:

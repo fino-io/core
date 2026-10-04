@@ -23,7 +23,7 @@ func (x *StringValues) ToArray() any {
 	return []string{}
 }
 
-func (x *StringValues) Contains(element string) any {
+func (x *StringValues) Contains(element string) bool {
 	return slices.Contains(x.GetVals(), element)
 }
 

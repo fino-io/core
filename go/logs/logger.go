@@ -2,16 +2,12 @@ package logs
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"io"
-	"log"
-	"net"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
-	"time"
+	"sync"
 
 	jsoniter "github.com/json-iterator/go"
 	"go.uber.org/zap"
@@ -24,6 +20,9 @@ type Logger interface {
 	GetLevel() Level
 	With(...Field) Logger
 	Log(context.Context, Entry)
+	LevelHandler() http.Handler
+	Sync() error
+	Close() error
 }
 
 type Field struct {
@@ -42,6 +41,7 @@ type zapLogger struct {
 	level  zap.AtomicLevel
 	logger *zap.Logger
 	fields []Field
+	close  func() error
 }
 
 func NewLoggerWith(cfg *Config) Logger {
@@ -70,7 +70,7 @@ func newZapLogger(cfg *Config, sink io.Writer) *zapLogger {
 	}
 
 	encoder := newEncoder(encode)
-	writeSyncer := newWriteSyncer(cfg, sink)
+	writeSyncer, closeSink := newWriteSyncer(cfg, sink)
 	core := zapcore.NewCore(encoder, writeSyncer, level)
 	base := zap.New(core, zap.AddCaller())
 
@@ -84,16 +84,11 @@ func newZapLogger(cfg *Config, sink io.Writer) *zapLogger {
 		fields = append(fields, Field{Key: key, Value: cfg.InitFields[key]})
 	}
 
-	if len(cfg.LevelPattern) > 0 && cfg.LevelPort > 0 {
-		if _, err := startLevelServer(&level, cfg.LevelPattern, cfg.LevelPort); err != nil {
-			log.Printf("failed to start log level server: %s\n", err)
-		}
-	}
-
 	return &zapLogger{
 		level:  level,
 		logger: base,
 		fields: fields,
+		close:  closeSink,
 	}
 }
 
@@ -119,61 +114,40 @@ func newEncoder(encode string) zapcore.Encoder {
 	return zapcore.NewConsoleEncoder(cfg)
 }
 
-func newWriteSyncer(cfg *Config, sink io.Writer) zapcore.WriteSyncer {
+func newWriteSyncer(cfg *Config, sink io.Writer) (zapcore.WriteSyncer, func() error) {
 	if sink != nil {
-		return zapcore.Lock(zapcore.AddSync(sink))
+		return zapcore.Lock(zapcore.AddSync(sink)), func() error { return nil }
 	}
 	if strings.EqualFold(cfg.Output, "file") {
 		fileCfg := cfg.File
 		if fileCfg.Path == "" {
 			fileCfg.Path = NewDefaultConfig().File.Path
 		}
-		return zapcore.Lock(zapcore.AddSync(&lumberjack.Logger{
+		file := &lumberjack.Logger{
 			Filename:   fileCfg.Path,
 			MaxSize:    fileCfg.MaxSize,
 			MaxBackups: fileCfg.MaxBackups,
 			MaxAge:     fileCfg.MaxAge,
 			Compress:   fileCfg.Compress,
-		}))
-	}
-	return zapcore.Lock(zapcore.AddSync(os.Stdout))
-}
-
-func levelHandler(level *zap.AtomicLevel, pattern string) http.Handler {
-	mux := http.NewServeMux()
-	mux.Handle(pattern, level)
-	return mux
-}
-
-func startLevelServer(level *zap.AtomicLevel, pattern string, port int) (*http.Server, error) {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil, err
-	}
-	return startLevelServerWithListener(level, pattern, ln), nil
-}
-
-func startLevelServerWithListener(level *zap.AtomicLevel, pattern string, ln net.Listener) *http.Server {
-	svc := &http.Server{
-		Addr:         ln.Addr().String(),
-		Handler:      levelHandler(level, pattern),
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
-	}
-
-	go func() {
-		addr := ln.Addr().String()
-		fmt.Printf(
-			"level serve on addr:%s\nusage: [GET] curl http://%s%s\nusage: [PUT] curl -XPUT --data '{\"level\":\"debug\"}' http://%s%s\n",
-			addr, addr, pattern, addr, pattern,
-		)
-		if err := svc.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("failed to serve log level: %s\n", err)
 		}
-	}()
+		return zapcore.Lock(zapcore.AddSync(file)), sync.OnceValue(file.Close)
+	}
+	return zapcore.Lock(zapcore.AddSync(os.Stdout)), func() error { return nil }
+}
 
-	return svc
+// LevelHandler can be mounted on the application's HTTP server.
+func (l *zapLogger) LevelHandler() http.Handler {
+	return l.level
+}
+
+func (l *zapLogger) Sync() error {
+	return l.logger.Sync()
+}
+
+// Close releases the owned file sink. Derived loggers share its lifetime.
+// Console output and writers supplied by callers are not owned by the logger.
+func (l *zapLogger) Close() error {
+	return l.close()
 }
 
 func jsoniterReflectedEncoder(w io.Writer) zapcore.ReflectedEncoder {
@@ -195,6 +169,7 @@ func (l *zapLogger) With(fields ...Field) Logger {
 		level:  l.level,
 		logger: l.logger,
 		fields: mergeFields(l.fields, fields),
+		close:  l.close,
 	}
 }
 

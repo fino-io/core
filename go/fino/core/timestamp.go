@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -79,11 +80,15 @@ func (x *Timestamp) Date() *Date {
 	return nil
 }
 
-func (x *Timestamp) Add(d *Duration) *Timestamp {
-	if x != nil && d != nil {
-		return FromTime(x.ToTime().Add(d.ToDuration()))
+func (x *Timestamp) Add(d *Duration) (*Timestamp, error) {
+	if x == nil || d == nil {
+		return nil, fmt.Errorf("Timestamp.Add: nil timestamp or duration")
 	}
-	return nil
+	duration, err := d.ToDuration()
+	if err != nil {
+		return nil, err
+	}
+	return FromTime(x.ToTime().Add(duration)), nil
 }
 
 func (x *Timestamp) AddDate(year, month, day int) *Timestamp {

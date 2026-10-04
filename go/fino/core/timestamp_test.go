@@ -48,7 +48,7 @@ func TestTimestampUnmarshal(t *testing.T) {
 func TestTimestampMarshal(t *testing.T) {
 	ts := &Timestamp{Seconds: 1570967545, Nanoseconds: 0}
 	str, _ := jsoniter.ConfigDefault.MarshalToString(ts)
-	assert.Equal(t, TimestampString1Json, str)
+	assert.Equal(t, `"2019-10-13T11:52:25Z"`, str)
 }
 
 func TestTimestampParse(t *testing.T) {

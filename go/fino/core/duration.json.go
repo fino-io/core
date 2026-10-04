@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/json"
 	"io"
 	"unsafe"
 
@@ -23,10 +22,6 @@ func (codec *DurationCodec) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) 
 	}
 	duration := (*Duration)(ptr)
 	if a.ValueType() == jsoniter.NumberValue {
-		if !json.Valid([]byte(a.ToString())) {
-			iter.ReportError("Decode Duration", "invalid JSON number")
-			return
-		}
 		if err := duration.parseSeconds(a.ToString()); err != nil {
 			iter.ReportError("Decode Duration", err.Error())
 		}
