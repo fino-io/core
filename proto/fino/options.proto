@@ -67,9 +67,10 @@ message MessagingOptions {
   bool subscription = 1;
 }
 
-// HTTPOptions configures transport behavior for an HTTP binding.
-message HTTPOptions {
-  // Decodes one multipart file part into the bytes field selected by HttpRule.body.
+// HttpOptions configures transport behavior for an HTTP binding.
+message HttpOptions {
+  // Decodes one multipart/form-data file part into the bytes field selected
+  // by HttpRule.body.
   MultipartOptions multipart = 1;
   // Top-level string response field used for the attachment filename.
   string attachment_filename_field = 2;
@@ -93,5 +94,5 @@ extend google.protobuf.FieldOptions {
 
 extend google.protobuf.MethodOptions {
   MessagingOptions messaging = 51004;
-  HTTPOptions http = 51005;
+  HttpOptions http = 51005;
 }

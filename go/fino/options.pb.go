@@ -363,13 +363,14 @@ func (x *MessagingOptions) GetSubscription() bool {
 	return false
 }
 
-// HTTPOptions configures transport behavior for an HTTP binding.
-type HTTPOptions struct {
+// HttpOptions configures transport behavior for an HTTP binding.
+type HttpOptions struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Decodes one multipart file part into the bytes field selected by HttpRule.body.
+	// Decodes one multipart/form-data file part into the bytes field selected
+	// by HttpRule.body.
 	Multipart *MultipartOptions `protobuf:"bytes,1,opt,name=multipart,proto3" json:"multipart,omitempty"`
 	// Top-level string response field used for the attachment filename.
 	AttachmentFilenameField string `protobuf:"bytes,2,opt,name=attachment_filename_field,json=attachmentFilenameField,proto3" json:"attachmentFilenameField,omitempty"`
@@ -377,8 +378,8 @@ type HTTPOptions struct {
 	MaxRequestBodyBytes int64 `protobuf:"varint,3,opt,name=max_request_body_bytes,json=maxRequestBodyBytes,proto3" json:"maxRequestBodyBytes,omitempty"`
 }
 
-func (x *HTTPOptions) Reset() {
-	*x = HTTPOptions{}
+func (x *HttpOptions) Reset() {
+	*x = HttpOptions{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_fino_options_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -386,13 +387,13 @@ func (x *HTTPOptions) Reset() {
 	}
 }
 
-func (x *HTTPOptions) String() string {
+func (x *HttpOptions) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HTTPOptions) ProtoMessage() {}
+func (*HttpOptions) ProtoMessage() {}
 
-func (x *HTTPOptions) ProtoReflect() protoreflect.Message {
+func (x *HttpOptions) ProtoReflect() protoreflect.Message {
 	mi := &file_fino_options_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -404,26 +405,26 @@ func (x *HTTPOptions) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HTTPOptions.ProtoReflect.Descriptor instead.
-func (*HTTPOptions) Descriptor() ([]byte, []int) {
+// Deprecated: Use HttpOptions.ProtoReflect.Descriptor instead.
+func (*HttpOptions) Descriptor() ([]byte, []int) {
 	return file_fino_options_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *HTTPOptions) GetMultipart() *MultipartOptions {
+func (x *HttpOptions) GetMultipart() *MultipartOptions {
 	if x != nil {
 		return x.Multipart
 	}
 	return nil
 }
 
-func (x *HTTPOptions) GetAttachmentFilenameField() string {
+func (x *HttpOptions) GetAttachmentFilenameField() string {
 	if x != nil {
 		return x.AttachmentFilenameField
 	}
 	return ""
 }
 
-func (x *HTTPOptions) GetMaxRequestBodyBytes() int64 {
+func (x *HttpOptions) GetMaxRequestBodyBytes() int64 {
 	if x != nil {
 		return x.MaxRequestBodyBytes
 	}
@@ -513,7 +514,7 @@ var file_fino_options_proto_extTypes = []protoimpl.ExtensionInfo{
 	},
 	{
 		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
-		ExtensionType: (*HTTPOptions)(nil),
+		ExtensionType: (*HttpOptions)(nil),
 		Field:         51005,
 		Name:          "fino.http",
 		Tag:           "bytes,51005,opt,name=http",
@@ -539,7 +540,7 @@ var (
 var (
 	// optional fino.MessagingOptions messaging = 51004;
 	E_Messaging = &file_fino_options_proto_extTypes[3]
-	// optional fino.HTTPOptions http = 51005;
+	// optional fino.HttpOptions http = 51005;
 	E_Http = &file_fino_options_proto_extTypes[4]
 )
 
@@ -593,8 +594,8 @@ var file_fino_options_proto_rawDesc = []byte{
 	0x22, 0x36, 0x0a, 0x10, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x69, 0x6e, 0x67, 0x4f, 0x70, 0x74,
 	0x69, 0x6f, 0x6e, 0x73, 0x12, 0x22, 0x0a, 0x0c, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70,
 	0x74, 0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x0c, 0x73, 0x75, 0x62, 0x73,
-	0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0xb4, 0x01, 0x0a, 0x0b, 0x48, 0x54, 0x54,
-	0x50, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x34, 0x0a, 0x09, 0x6d, 0x75, 0x6c, 0x74,
+	0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0xb4, 0x01, 0x0a, 0x0b, 0x48, 0x74, 0x74,
+	0x70, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x34, 0x0a, 0x09, 0x6d, 0x75, 0x6c, 0x74,
 	0x69, 0x70, 0x61, 0x72, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x66, 0x69,
 	0x6e, 0x6f, 0x2e, 0x4d, 0x75, 0x6c, 0x74, 0x69, 0x70, 0x61, 0x72, 0x74, 0x4f, 0x70, 0x74, 0x69,
 	0x6f, 0x6e, 0x73, 0x52, 0x09, 0x6d, 0x75, 0x6c, 0x74, 0x69, 0x70, 0x61, 0x72, 0x74, 0x12, 0x3a,
@@ -631,7 +632,7 @@ var file_fino_options_proto_rawDesc = []byte{
 	0x67, 0x69, 0x6e, 0x67, 0x3a, 0x47, 0x0a, 0x04, 0x68, 0x74, 0x74, 0x70, 0x12, 0x1e, 0x2e, 0x67,
 	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x4d,
 	0x65, 0x74, 0x68, 0x6f, 0x64, 0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0xbd, 0x8e, 0x03,
-	0x20, 0x01, 0x28, 0x0b, 0x32, 0x11, 0x2e, 0x66, 0x69, 0x6e, 0x6f, 0x2e, 0x48, 0x54, 0x54, 0x50,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x11, 0x2e, 0x66, 0x69, 0x6e, 0x6f, 0x2e, 0x48, 0x74, 0x74, 0x70,
 	0x4f, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x04, 0x68, 0x74, 0x74, 0x70, 0x42, 0x26, 0x5a,
 	0x24, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x66, 0x69, 0x6e, 0x6f,
 	0x2d, 0x69, 0x6f, 0x2f, 0x63, 0x6f, 0x72, 0x65, 0x2f, 0x67, 0x6f, 0x2f, 0x66, 0x69, 0x6e, 0x6f,
@@ -656,14 +657,14 @@ var file_fino_options_proto_goTypes = []interface{}{
 	(*DBOptions)(nil),                   // 1: fino.DBOptions
 	(*ValidateOptions)(nil),             // 2: fino.ValidateOptions
 	(*MessagingOptions)(nil),            // 3: fino.MessagingOptions
-	(*HTTPOptions)(nil),                 // 4: fino.HTTPOptions
+	(*HttpOptions)(nil),                 // 4: fino.HttpOptions
 	(*MultipartOptions)(nil),            // 5: fino.MultipartOptions
 	(*descriptorpb.MessageOptions)(nil), // 6: google.protobuf.MessageOptions
 	(*descriptorpb.FieldOptions)(nil),   // 7: google.protobuf.FieldOptions
 	(*descriptorpb.MethodOptions)(nil),  // 8: google.protobuf.MethodOptions
 }
 var file_fino_options_proto_depIdxs = []int32{
-	5,  // 0: fino.HTTPOptions.multipart:type_name -> fino.MultipartOptions
+	5,  // 0: fino.HttpOptions.multipart:type_name -> fino.MultipartOptions
 	6,  // 1: fino.model:extendee -> google.protobuf.MessageOptions
 	7,  // 2: fino.db:extendee -> google.protobuf.FieldOptions
 	7,  // 3: fino.validate:extendee -> google.protobuf.FieldOptions
@@ -673,7 +674,7 @@ var file_fino_options_proto_depIdxs = []int32{
 	1,  // 7: fino.db:type_name -> fino.DBOptions
 	2,  // 8: fino.validate:type_name -> fino.ValidateOptions
 	3,  // 9: fino.messaging:type_name -> fino.MessagingOptions
-	4,  // 10: fino.http:type_name -> fino.HTTPOptions
+	4,  // 10: fino.http:type_name -> fino.HttpOptions
 	11, // [11:11] is the sub-list for method output_type
 	11, // [11:11] is the sub-list for method input_type
 	6,  // [6:11] is the sub-list for extension type_name
@@ -736,7 +737,7 @@ func file_fino_options_proto_init() {
 			}
 		}
 		file_fino_options_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HTTPOptions); i {
+			switch v := v.(*HttpOptions); i {
 			case 0:
 				return &v.state
 			case 1:
