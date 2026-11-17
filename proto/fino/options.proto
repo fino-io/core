@@ -67,6 +67,21 @@ message MessagingOptions {
   bool subscription = 1;
 }
 
+// HTTPOptions configures transport behavior for an HTTP binding.
+message HTTPOptions {
+  // Decodes one multipart file part into the bytes field selected by HttpRule.body.
+  MultipartOptions multipart = 1;
+  // Top-level string response field used for the attachment filename.
+  string attachment_filename_field = 2;
+  // Positive limit for a raw google.api.HttpBody request. Defaults to 1 MiB.
+  int64 max_request_body_bytes = 3;
+}
+
+message MultipartOptions {
+  // Maximum file size in bytes, excluding the multipart envelope.
+  int64 max_file_bytes = 1;
+}
+
 extend google.protobuf.MessageOptions {
   ModelOptions model = 51001;
 }
@@ -78,4 +93,5 @@ extend google.protobuf.FieldOptions {
 
 extend google.protobuf.MethodOptions {
   MessagingOptions messaging = 51004;
+  HTTPOptions http = 51005;
 }

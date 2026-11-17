@@ -60,6 +60,11 @@ preserve explicit zero or empty settings. In Go, use `proto.Int64(0)` or
 `proto.String("")` to set them; nil leaves them unspecified. The generated
 getters return default values, so check field pointers when presence matters.
 
+`(fino.http)` is an RPC option for HTTP file bindings. It configures a raw
+`google.api.HttpBody` request limit, a single multipart file limit, or the
+response field used as an attachment filename. The HTTP method, path, and
+body field selection are declared with `google.api.http`.
+
 `File.mode` selects `MODE_DIR` or `MODE_FILE`; `File.name` is the entry name.
 Metadata in `File.info` contains no duplicate name or directory flag.
 
